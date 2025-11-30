@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Course, Lesson, LessonProgress, Review, User } from '../types';
 import { CourseRepository } from '../services/repositories/CourseRepository';
@@ -19,6 +20,7 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [progress, setProgress] = useState<LessonProgress[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [avgRating, setAvgRating] = useState(0);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
   
@@ -48,7 +50,10 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
     setLessons(repo.getLessonsByCourseId(courseId));
     setProgress(db.progress.filter(p => p.student_id === currentUserId));
     setIsEnrolled(repo.isEnrolled(currentUserId, courseId));
+    
+    // Reviews & Rating
     setReviews(repo.getReviews(courseId));
+    setAvgRating(repo.getAverageRating(courseId));
   };
 
   useEffect(() => {
@@ -99,8 +104,9 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
             <div className="flex items-center gap-4">
                 <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-bold">Free Course</span>
                 <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-sm font-bold">{lessons.length} Lessons</span>
-                <span className="px-3 py-1 bg-yellow-50 text-yellow-700 rounded-full text-sm font-bold flex items-center gap-1">
-                    <Star size={14} fill="currentColor" /> {reviews.length} Reviews
+                <span className="px-3 py-1 bg-yellow-50 text-yellow-800 rounded-full text-sm font-bold flex items-center gap-1">
+                    <Star size={14} fill="currentColor" className="text-yellow-500" /> 
+                    {avgRating > 0 ? avgRating : 'New'} <span className="text-yellow-600 font-normal">({reviews.length} reviews)</span>
                 </span>
             </div>
             
@@ -111,7 +117,9 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
                    <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
                       <TrendingUp size={16} className="text-indigo-600"/> Your Progress
                    </div>
-                   <span className="text-sm font-bold text-indigo-600">{progressPercent}%</span>
+                   <span className="text-sm font-bold text-indigo-600">
+                     {progressPercent === 100 ? 'Completed' : `${progressPercent}%`}
+                   </span>
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-3">
                     <div 
@@ -192,7 +200,14 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
           {/* Right Col: Reviews */}
           <div className="space-y-6">
               <div className="flex items-center justify-between border-b pb-2">
-                <h3 className="text-xl font-semibold text-slate-800">Reviews</h3>
+                <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-semibold text-slate-800">Reviews</h3>
+                    {avgRating > 0 && (
+                        <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                            <Star size={10} fill="currentColor" /> {avgRating}
+                        </span>
+                    )}
+                </div>
                 {isEnrolled && !showReviewForm && (
                     <button 
                         onClick={() => setShowReviewForm(true)}

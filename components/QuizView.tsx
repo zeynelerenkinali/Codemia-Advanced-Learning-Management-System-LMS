@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Database } from '../services/Database';
 import { ScoringStrategy, StandardScoring, StrictScoring } from '../services/strategies/ScoringStrategy';
+import { Question } from '../types';
 
 interface Props {
   quizId: number;
@@ -27,6 +28,15 @@ export const QuizView: React.FC<Props> = ({ quizId, onBack }) => {
     const calculatedScore = strategy.calculateScore(questions, answers);
     setScore(calculatedScore);
     setSubmitted(true);
+  };
+
+  // Helper to determine if a specific question was answered correctly (for UI coloring)
+  const isCorrect = (q: Question) => {
+      const userAns = (answers[q.id] || '').trim().toLowerCase();
+      const correctAns = q.correct_answer.trim().toLowerCase();
+      // Check exact match or lookup table variations (stored in options for Short Answer)
+      const variations = (q.options || []).map(o => o.trim().toLowerCase());
+      return userAns === correctAns || variations.includes(userAns);
   };
 
   const maxScore = questions.reduce((acc, q) => acc + q.points, 0);
@@ -69,6 +79,7 @@ export const QuizView: React.FC<Props> = ({ quizId, onBack }) => {
                 {idx + 1}. {q.text} <span className="text-xs font-normal text-slate-500">({q.points} pts)</span>
               </p>
               
+              {/* MULTIPLE CHOICE */}
               {q.type === 'multiple_choice' && q.options && (
                 <div className="space-y-2">
                   {q.options.map(opt => (
@@ -98,6 +109,7 @@ export const QuizView: React.FC<Props> = ({ quizId, onBack }) => {
                 </div>
               )}
 
+              {/* TRUE / FALSE */}
               {q.type === 'true_false' && q.options && (
                  <div className="flex gap-4">
                     {q.options.map(opt => (
@@ -122,6 +134,33 @@ export const QuizView: React.FC<Props> = ({ quizId, onBack }) => {
                     ))}
                  </div>
               )}
+
+              {/* SHORT ANSWER */}
+              {q.type === 'short_answer' && (
+                  <div>
+                      <input 
+                        type="text"
+                        disabled={submitted}
+                        value={answers[q.id] || ''}
+                        onChange={(e) => setAnswers(prev => ({...prev, [q.id]: e.target.value}))}
+                        className={`w-full p-3 border rounded outline-none transition-colors ${
+                             submitted 
+                                ? isCorrect(q) 
+                                    ? 'bg-green-50 border-green-500 text-green-900' 
+                                    : 'bg-red-50 border-red-500 text-red-900'
+                                : 'focus:ring-2 focus:ring-indigo-500 border-slate-300'
+                        }`}
+                        placeholder="Type your answer here..."
+                      />
+                      {submitted && !isCorrect(q) && (
+                          <div className="mt-2 text-xs text-red-600 font-bold">
+                              Correct Answer: {q.correct_answer} 
+                              {q.options && q.options.length > 0 && ` (or: ${q.options.join(', ')})`}
+                          </div>
+                      )}
+                  </div>
+              )}
+
             </div>
           ))}
         </div>

@@ -1,3 +1,4 @@
+
 import { User, Course, Lesson, Quiz, Question, Enrollment, LessonProgress, Review, UserRole, QuestionType, InstructorProfile } from '../types';
 
 /**
@@ -81,7 +82,7 @@ export class Database {
 
     // 1. DBMS Lessons
     const l1 = this.addLesson({ course_id: dbCourse.id, title: 'Introduction to Relational Model', content: 'The relational model is based on predicate logic and set theory.', order_index: 1, type: 'article', attachment_urls: ['https://example.com/slide1.pdf'] });
-    const l2 = this.addLesson({ course_id: dbCourse.id, title: 'SQL Basics', content: 'SELECT * FROM users; This is the most fundamental query.', order_index: 2, type: 'video', attachment_urls: [] });
+    const l2 = this.addLesson({ course_id: dbCourse.id, title: 'SQL Basics', content: 'https://www.youtube.com/watch?v=ZS_kXvOeQ5Y', order_index: 2, type: 'video', attachment_urls: [] });
     
     const q1 = this.addQuiz({ lesson_id: l1.id, title: 'Relational Model Quiz', passing_score: 50 });
     this.addQuestion({ quiz_id: q1.id, text: 'What is a Primary Key?', type: QuestionType.MULTIPLE_CHOICE, correct_answer: 'Unique ID', points: 10, options: ['Unique ID', 'Foreign Link', 'Just a number'] });
@@ -177,13 +178,18 @@ export class Database {
 
   // Delete Course (Cascading Delete)
   public deleteCourse(id: number): void {
-    // 1. Cascade: Enrollments & Reviews
+    // 1. Cascade: Enrollments & Reviews (Immutable filtering)
     this.enrollments = this.enrollments.filter(e => e.course_id !== id);
     this.reviews = this.reviews.filter(r => r.course_id !== id);
 
-    // 2. Cascade: Lessons (which will cascade to Quizzes/Questions)
-    const lessonsToDelete = this.lessons.filter(l => l.course_id === id);
-    lessonsToDelete.forEach(l => this.deleteLesson(l.id));
+    // 2. Find and Delete Lessons (which will cascade to Quizzes/Questions)
+    // We must identify IDs first to safely delete, though the deleteLesson method
+    // handles the logic, calling it in loop while modifying array can be tricky if not careful.
+    // However, since deleteLesson reassigns the array, we should grab IDs first.
+    const lessonIds = this.lessons.filter(l => l.course_id === id).map(l => l.id);
+    
+    // We execute deletion sequentially to ensure state stability
+    lessonIds.forEach(lId => this.deleteLesson(lId));
 
     // 3. Remove Course
     this.courses = this.courses.filter(c => c.id !== id);
@@ -204,9 +210,10 @@ export class Database {
     this.progress = this.progress.filter(p => p.lesson_id !== id);
 
     // 2. Cascade: Quiz
-    const lessonQuiz = this.quizzes.find(q => q.lesson_id === id);
-    if (lessonQuiz) {
-        this.deleteQuiz(lessonQuiz.id);
+    // Find quiz linked to lesson
+    const quiz = this.quizzes.find(q => q.lesson_id === id);
+    if (quiz) {
+        this.deleteQuiz(quiz.id);
     }
 
     // 3. Remove Lesson (Immutable reassignment)

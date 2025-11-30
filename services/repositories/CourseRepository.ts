@@ -114,6 +114,14 @@ export class CourseRepository {
     return this.db.reviews.filter(r => r.course_id === courseId).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
 
+  getAverageRating(courseId: number): number {
+    const reviews = this.getReviews(courseId);
+    if (reviews.length === 0) return 0;
+    const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
+    // Return average rounded to 1 decimal place
+    return parseFloat((sum / reviews.length).toFixed(1));
+  }
+
   addReview(courseId: number, studentId: number, rating: number, comment: string): Review {
     if (!this.isEnrolled(studentId, courseId)) {
       throw new Error("Only enrolled students can write a review.");

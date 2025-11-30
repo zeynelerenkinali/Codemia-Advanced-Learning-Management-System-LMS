@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { CourseRepository } from '../services/repositories/CourseRepository';
 import { Course, Lesson, LessonType, QuestionType, Quiz, Question } from '../types';
@@ -81,7 +82,7 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
     const newLesson = repo.createLesson({
         course_id: courseId,
         title: 'New Lesson',
-        content: 'Edit this content...',
+        content: '',
         type: 'article',
         order_index: lessons.length + 1,
         attachment_urls: []
@@ -309,13 +310,24 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
                         </div>
 
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Content (Markdown supported)</label>
-                            <textarea 
-                                value={lContent}
-                                onChange={e => setLContent(e.target.value)}
-                                rows={8}
-                                className="w-full p-3 border rounded focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm"
-                            />
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                {lType === 'video' ? 'Video URL (YouTube or MP4 Link)' : 'Content (Markdown supported)'}
+                            </label>
+                            {lType === 'video' ? (
+                                <input 
+                                    value={lContent}
+                                    onChange={e => setLContent(e.target.value)}
+                                    className="w-full p-3 border rounded focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                    placeholder="https://www.youtube.com/watch?v=..."
+                                />
+                            ) : (
+                                <textarea 
+                                    value={lContent}
+                                    onChange={e => setLContent(e.target.value)}
+                                    rows={8}
+                                    className="w-full p-3 border rounded focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm"
+                                />
+                            )}
                         </div>
 
                         <div>

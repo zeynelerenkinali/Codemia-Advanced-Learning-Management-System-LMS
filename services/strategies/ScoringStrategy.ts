@@ -1,4 +1,4 @@
-import { Question } from '../../types';
+import { Question, QuestionType } from '../../types';
 
 /**
  * PATTERN 4: STRATEGY
@@ -12,6 +12,26 @@ export interface ScoringStrategy {
   getDescription(): string;
 }
 
+// Helper to check answer validity (Handling Short Answers & Variations)
+const checkAnswer = (q: Question, userAnswer: string): boolean => {
+    if (!userAnswer) return false;
+    
+    // Normalize strings for comparison
+    const u = userAnswer.trim().toLowerCase();
+    const correct = q.correct_answer.trim().toLowerCase();
+    
+    // Check main answer
+    if (u === correct) return true;
+
+    // Check variations (Lookup table is stored in 'options' for Short Answer)
+    if (q.type === QuestionType.SHORT_ANSWER && q.options) {
+        const variations = q.options.map(opt => opt.trim().toLowerCase());
+        return variations.includes(u);
+    }
+
+    return false;
+};
+
 export class StandardScoring implements ScoringStrategy {
   getName() { return "Standard Scoring"; }
   getDescription() { return "Correct answers give points. No penalty for wrong answers."; }
@@ -19,7 +39,8 @@ export class StandardScoring implements ScoringStrategy {
   calculateScore(questions: Question[], answers: Record<number, string>): number {
     let score = 0;
     questions.forEach(q => {
-      if (answers[q.id] === q.correct_answer) {
+      const userAnswer = answers[q.id];
+      if (checkAnswer(q, userAnswer)) {
         score += q.points;
       }
     });
@@ -35,7 +56,7 @@ export class StrictScoring implements ScoringStrategy {
     let score = 0;
     questions.forEach(q => {
       const userAnswer = answers[q.id];
-      if (userAnswer === q.correct_answer) {
+      if (checkAnswer(q, userAnswer)) {
         score += q.points;
       } else if (userAnswer) {
         // Penalty for wrong answer, but not for skipped (empty)

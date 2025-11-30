@@ -1,8 +1,9 @@
 
+
 import React, { useEffect, useState } from 'react';
 import { Course } from '../types';
 import { CourseRepository } from '../services/repositories/CourseRepository';
-import { BookOpen, User, Tag, CheckCircle } from 'lucide-react';
+import { BookOpen, User, Tag, CheckCircle, Star } from 'lucide-react';
 
 interface Props {
   onSelectCourse: (id: number) => void;
@@ -24,6 +25,8 @@ export const CourseList: React.FC<Props> = ({ onSelectCourse, currentUserId }) =
         {courses.map(course => {
           const isEnrolled = repo.isEnrolled(currentUserId, course.id);
           const progress = isEnrolled ? repo.getProgress(currentUserId, course.id) : 0;
+          const avgRating = repo.getAverageRating(course.id);
+          const reviewCount = repo.getReviews(course.id).length;
 
           return (
             <div key={course.id} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col group">
@@ -37,17 +40,30 @@ export const CourseList: React.FC<Props> = ({ onSelectCourse, currentUserId }) =
                 )}
               </div>
               <div className="p-6 flex-1 flex flex-col">
-                <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors">{course.title}</h3>
-                <p className="text-slate-600 mb-4 line-clamp-2 flex-1">{course.description}</p>
+                <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors flex-1">{course.title}</h3>
+                    {avgRating > 0 && (
+                        <div className="flex items-center gap-1 bg-yellow-50 px-1.5 py-0.5 rounded text-xs font-bold text-yellow-700">
+                            <Star size={12} fill="currentColor" /> {avgRating}
+                        </div>
+                    )}
+                </div>
+                
+                <p className="text-slate-600 mb-4 line-clamp-2 flex-1 text-sm">{course.description}</p>
                 
                 <div className="flex items-center justify-between text-sm text-slate-500 mb-6">
                   <div className="flex items-center gap-1">
                     <User size={16} />
                     <span>ID: {course.instructor_id}</span>
                   </div>
-                  <div className="flex items-center gap-1 text-green-600 font-bold bg-green-50 px-2 py-1 rounded">
-                    <Tag size={14} />
-                    <span>Free</span>
+                  <div className="flex gap-2">
+                      <div className="flex items-center gap-1 text-slate-400 text-xs">
+                         {reviewCount} reviews
+                      </div>
+                      <div className="flex items-center gap-1 text-green-600 font-bold bg-green-50 px-2 py-1 rounded">
+                        <Tag size={14} />
+                        <span>Free</span>
+                      </div>
                   </div>
                 </div>
 
@@ -55,7 +71,7 @@ export const CourseList: React.FC<Props> = ({ onSelectCourse, currentUserId }) =
                   <div className="mb-4">
                     <div className="flex justify-between text-xs font-bold text-slate-500 mb-1">
                       <span>Progress</span>
-                      <span>{progress}%</span>
+                      <span>{progress === 100 ? 'Completed' : `${progress}%`}</span>
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-2">
                       <div 
