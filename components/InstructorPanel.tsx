@@ -1,15 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { Database } from '../services/Database';
 import { Course } from '../types';
 import { CourseRepository } from '../services/repositories/CourseRepository';
-import { BookOpen, UserCheck, Edit2, Trash2, PlusCircle, Settings, Layers } from 'lucide-react';
+import { BookOpen, UserCheck, Edit2, Trash2, PlusCircle, Settings, Layers, Eye } from 'lucide-react';
 import { InstructorCourseEditor } from './InstructorCourseEditor';
 
 interface Props {
   currentUserId: number;
+  onViewCourse?: (courseId: number) => void;
 }
 
-export const InstructorPanel: React.FC<Props> = ({ currentUserId }) => {
+export const InstructorPanel: React.FC<Props> = ({ currentUserId, onViewCourse }) => {
   const repo = new CourseRepository();
   const db = Database.getInstance();
   const [myCourses, setMyCourses] = useState<Course[]>([]);
@@ -152,6 +154,16 @@ export const InstructorPanel: React.FC<Props> = ({ currentUserId }) => {
                                 </td>
                                 <td className="p-3">{new Date(c.created_at).toLocaleDateString()}</td>
                                 <td className="p-3 text-right flex justify-end gap-2">
+                                    {onViewCourse && (
+                                        <button 
+                                            type="button"
+                                            onClick={() => onViewCourse(c.id)}
+                                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                            title="View Public Page (Reviews)"
+                                        >
+                                            <Eye size={16} />
+                                        </button>
+                                    )}
                                     <button 
                                         type="button"
                                         onClick={() => openEditModal(c)}

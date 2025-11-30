@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { Database } from '../services/Database';
 import { ScoringStrategy, StandardScoring, StrictScoring } from '../services/strategies/ScoringStrategy';
-import { Question } from '../types';
+import { Question, QuestionType } from '../types';
 
 interface Props {
   quizId: number;
@@ -80,7 +81,7 @@ export const QuizView: React.FC<Props> = ({ quizId, onBack }) => {
               </p>
               
               {/* MULTIPLE CHOICE */}
-              {q.type === 'multiple_choice' && q.options && (
+              {q.type === QuestionType.MULTIPLE_CHOICE && q.options && (
                 <div className="space-y-2">
                   {q.options.map(opt => (
                     <label key={opt} className={`flex items-center p-3 rounded cursor-pointer border transition-colors ${
@@ -110,7 +111,7 @@ export const QuizView: React.FC<Props> = ({ quizId, onBack }) => {
               )}
 
               {/* TRUE / FALSE */}
-              {q.type === 'true_false' && q.options && (
+              {q.type === QuestionType.TRUE_FALSE && q.options && (
                  <div className="flex gap-4">
                     {q.options.map(opt => (
                          <button
@@ -136,7 +137,7 @@ export const QuizView: React.FC<Props> = ({ quizId, onBack }) => {
               )}
 
               {/* SHORT ANSWER */}
-              {q.type === 'short_answer' && (
+              {q.type === QuestionType.SHORT_ANSWER && (
                   <div>
                       <input 
                         type="text"
