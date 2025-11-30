@@ -7,7 +7,7 @@ export enum UserRole {
 }
 
 export interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: UserRole;
@@ -20,14 +20,14 @@ export interface User {
 
 // Subclass Entity for Instructor (Table-per-subclass pattern)
 export interface InstructorProfile {
-  user_id: number; // PK and FK to User
+  user_id: string; // PK and FK to User
   bio: string;
   expertise_area: string;
 }
 
 // 2. Course Entity
 export interface Course {
-  id: number;
+  id: string;
   title: string;
   description: string;
   instructor_id: number;
@@ -39,8 +39,8 @@ export interface Course {
 export type LessonType = 'article' | 'video' | 'quiz';
 
 export interface Lesson {
-  id: number;
-  course_id: number;
+  id: string;
+  course_id: string;
   title: string;
   content: string; // Text content for demo
   order_index: number;
@@ -50,8 +50,8 @@ export interface Lesson {
 
 // 4. Quiz Entity
 export interface Quiz {
-  id: number;
-  lesson_id: number;
+  id: string;
+  lesson_id: string;
   title: string;
   passing_score: number;
 }
@@ -64,8 +64,8 @@ export enum QuestionType {
 }
 
 export interface Question {
-  id: number;
-  quiz_id: number;
+  id: string;
+  quiz_id: string;
   text: string;
   type: QuestionType;
   options?: string[]; // For MC
@@ -75,22 +75,22 @@ export interface Question {
 
 // 6. Enrollment (M-N Relationship between Student and Course)
 export interface Enrollment {
-  student_id: number;
-  course_id: number;
+  student_id: string;
+  course_id: string;
   enrolled_at: string;
 }
 
 // 7. LessonProgress (Weak Entity, tracks student progress)
 export interface LessonProgress {
-  student_id: number;
-  lesson_id: number;
+  student_id: string;
+  lesson_id: string;
   completed: boolean;
   last_accessed: string;
 }
 
 // 8. Review (Extra entity)
 export interface Review {
-  id: number;
+  id: string;
   course_id: number;
   student_id: number;
   rating: number;

@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { ViewState, User, UserRole } from './types';
-import { Database } from './services/Database';
+// Database importu kaldırıldı
 import { AuthPage } from './components/AuthPage';
 import { CourseList } from './components/CourseList';
 import { CourseDetail } from './components/CourseDetail';
@@ -13,42 +12,43 @@ import { BecomeInstructor } from './components/BecomeInstructor';
 import { ProfileSettings } from './components/ProfileSettings';
 import { SQLViewer } from './components/SQLViewer';
 import { PatternsInfo } from './components/PatternsInfo';
-import { GraduationCap, Database as DbIcon, Code, Settings, BookOpen, Loader2, LogOut, PenTool, UserPlus, User as UserIcon } from 'lucide-react';
+import { GraduationCap, Database as DbIcon, Code, Settings, BookOpen, LogOut, PenTool, UserPlus } from 'lucide-react';
 
 export default function App() {
-  const [showSplash, setShowSplash] = useState(true);
+  const [loading, setLoading] = useState(true); // Splash yerine genel loading
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const [view, setView] = useState<ViewState>('home');
-  const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
-  const [activeLessonId, setActiveLessonId] = useState<number | null>(null);
-  const [activeQuizId, setActiveQuizId] = useState<number | null>(null);
+  
+  // DİKKAT: UUID kullandığımız için ID state'leri artık string!
+  const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
+  const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
+  const [activeQuizId, setActiveQuizId] = useState<string | null>(null);
   
   useEffect(() => {
-    // 1. Simulate initialization time for the Singleton Database
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-      
-      // 2. Check for "Remember Me" session
-      const savedUserId = localStorage.getItem('codemia_user_id');
-      if (savedUserId) {
-        const db = Database.getInstance();
-        const user = db.users.find(u => u.id === parseInt(savedUserId));
-        if (user) {
-          handleLoginSuccess(user, false);
-        }
+    // Sayfa yüklendiğinde LocalStorage kontrolü
+    const token = localStorage.getItem('token');
+    const savedUserStr = localStorage.getItem('codemia_user');
+
+    if (token && savedUserStr) {
+      try {
+        const user = JSON.parse(savedUserStr);
+        handleLoginSuccess(user, false); // State'i güncelle
+      } catch (error) {
+        // Veri bozuksa temizle
+        localStorage.removeItem('token');
+        localStorage.removeItem('codemia_user');
       }
-    }, 2500);
-    return () => clearTimeout(timer);
+    }
+    setLoading(false);
   }, []);
 
   const handleLoginSuccess = (user: User, remember: boolean) => {
     setCurrentUser(user);
-    if (remember) {
-      localStorage.setItem('codemia_user_id', user.id.toString());
-    } else {
-      localStorage.removeItem('codemia_user_id');
-    }
+    
+    // Kullanıcıyı ve Token'ı sakla (AuthPage zaten token'ı kaydediyor ama user'ı burada tutuyoruz)
+    // Not: Güvenlik için hassas verileri localStorage'a atmamak gerekir ama bu demo için user objesini tutuyoruz.
+    localStorage.setItem('codemia_user', JSON.stringify(user));
 
     // Role-based redirection logic
     if (user.role === UserRole.INSTRUCTOR) {
@@ -62,7 +62,8 @@ export default function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('codemia_user_id');
+    localStorage.removeItem('token');
+    localStorage.removeItem('codemia_user');
     setView('home'); 
   };
 
@@ -73,27 +74,13 @@ export default function App() {
     setActiveQuizId(null);
   };
 
-  if (showSplash) {
+  // Yükleniyor ekranı (Token kontrol edilirken beyaz ekran kalmasın)
+  if (loading) {
     return (
-      <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center text-white">
+      <div className="fixed inset-0 bg-slate-900 flex items-center justify-center text-white">
         <div className="flex flex-col items-center">
-          <div className="w-24 h-24 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-2xl shadow-indigo-500/30">
-            <GraduationCap size={48} className="text-white" />
-          </div>
-          <h1 className="text-5xl font-extrabold tracking-tighter mb-2 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-            Codemia
-          </h1>
-          <p className="text-slate-400 text-lg mb-8 font-light tracking-wide">
-            E-Learning Platform
-          </p>
-          
-          <div className="flex flex-col items-center gap-3">
-             <div className="flex items-center gap-2 text-indigo-400 bg-slate-900/50 px-4 py-2 rounded-full border border-slate-800">
-              <Loader2 className="animate-spin w-4 h-4" />
-              <span className="text-xs font-mono tracking-wider">INITIALIZING DB SINGLETON...</span>
-            </div>
-            <p className="text-xs text-slate-600 mt-2">DBMS Term Project Demo</p>
-          </div>
+            <GraduationCap className="animate-bounce mb-4 text-indigo-500" size={48} />
+            <p className="text-slate-400">Loading Codemia...</p>
         </div>
       </div>
     );
