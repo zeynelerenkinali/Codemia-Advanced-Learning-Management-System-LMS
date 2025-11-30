@@ -1,20 +1,19 @@
 
-
 import React, { useState, useEffect } from 'react';
-import { Course, Lesson, LessonProgress, Review, User } from '../types';
+import { Course, Lesson, LessonProgress, Review, User, UserRole } from '../types';
 import { CourseRepository } from '../services/repositories/CourseRepository';
 import { Database } from '../services/Database';
-import { PlayCircle, CheckCircle, Lock, BookOpen, Star, MessageSquare, TrendingUp } from 'lucide-react';
+import { PlayCircle, CheckCircle, Lock, BookOpen, Star, MessageSquare, TrendingUp, AlertTriangle } from 'lucide-react';
 import { progressSubject } from '../services/observers/ProgressObserver';
 
 interface Props {
   courseId: number;
-  currentUserId: number;
+  currentUser: User;
   onSelectLesson: (id: number) => void;
   onBack: () => void;
 }
 
-export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelectLesson, onBack }) => {
+export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectLesson, onBack }) => {
   const [course, setCourse] = useState<Course | undefined>();
   const [instructorName, setInstructorName] = useState('');
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -41,15 +40,15 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
         setInstructorName(inst ? inst.name : 'Unknown');
         
         // Calculate Progress
-        if (repo.isEnrolled(currentUserId, courseId)) {
-            setProgressPercent(repo.getProgress(currentUserId, courseId));
+        if (repo.isEnrolled(currentUser.id, courseId)) {
+            setProgressPercent(repo.getProgress(currentUser.id, courseId));
         } else {
             setProgressPercent(0);
         }
     }
     setLessons(repo.getLessonsByCourseId(courseId));
-    setProgress(db.progress.filter(p => p.student_id === currentUserId));
-    setIsEnrolled(repo.isEnrolled(currentUserId, courseId));
+    setProgress(db.progress.filter(p => p.student_id === currentUser.id));
+    setIsEnrolled(repo.isEnrolled(currentUser.id, courseId));
     
     // Reviews & Rating
     setReviews(repo.getReviews(courseId));
@@ -60,16 +59,17 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
     loadData();
     // OBSERVER PATTERN: Subscribe to progress updates
     const unsubscribe = progressSubject.subscribe(({ studentId }) => {
-      if (studentId === currentUserId) {
+      if (studentId === currentUser.id) {
         loadData();
       }
     });
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseId, currentUserId]);
+  }, [courseId, currentUser.id]);
 
   const handleEnroll = () => {
-    repo.enroll(currentUserId, courseId);
+    if (currentUser.role === UserRole.INSTRUCTOR) return;
+    repo.enroll(currentUser.id, courseId);
     loadData();
   };
 
@@ -77,7 +77,7 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
     e.preventDefault();
     setReviewError(null);
     try {
-        repo.addReview(courseId, currentUserId, newRating, newComment);
+        repo.addReview(courseId, currentUser.id, newRating, newComment);
         setNewComment('');
         setShowReviewForm(false);
         loadData();
@@ -91,9 +91,15 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
   const isCompleted = (lessonId: number) => progress.some(p => p.lesson_id === lessonId && p.completed);
   const getUserName = (id: number) => db.users.find(u => u.id === id)?.name || 'Unknown User';
 
+  // Role Checks
+  const isInstructor = currentUser.role === UserRole.INSTRUCTOR;
+  const isCreator = course.instructor_id === currentUser.id;
+  // Creator can preview their own course content, even if not enrolled
+  const canAccessContent = isEnrolled || isCreator; 
+
   return (
     <div className="space-y-6 pb-12">
-      <button onClick={onBack} className="text-indigo-600 hover:underline font-medium">&larr; Back to Courses</button>
+      <button onClick={onBack} className="text-indigo-600 hover:underline font-medium">&larr; Back to Dashboard</button>
       
       {/* Course Header with Enrollment Logic */}
       <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 justify-between items-start">
@@ -136,7 +142,15 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
                 <div className="text-green-600 font-bold flex items-center justify-center gap-2 mb-2">
                     <CheckCircle /> Enrolled
                 </div>
+            ) : isInstructor ? (
+                // INSTRUCTOR VIEW: cannot enroll
+                <div className="text-slate-500 font-bold flex flex-col items-center justify-center gap-2 mb-2">
+                    <AlertTriangle className="text-amber-500" /> 
+                    <span>Instructor View</span>
+                    <span className="text-xs font-normal">You cannot enroll in courses.</span>
+                </div>
             ) : (
+                // STUDENT VIEW: can enroll
                 <button 
                     onClick={handleEnroll}
                     className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
@@ -144,8 +158,9 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
                     Enroll Now
                 </button>
             )}
+
             <p className="text-xs text-slate-500 mt-2">
-                {isEnrolled ? 'Access all lessons below.' : 'Enrollment is required to access content and review.'}
+                {isEnrolled ? 'Access all lessons below.' : isCreator ? 'You are viewing your own course as a preview.' : 'Enrollment is required to access content.'}
             </p>
         </div>
       </div>
@@ -158,35 +173,34 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
             <p className="text-slate-500 italic">No lessons available yet.</p>
             ) : (
             lessons.map((lesson, idx) => {
-                const canAccess = isEnrolled;
                 
                 return (
                     <div 
                     key={lesson.id}
                     className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
-                        canAccess 
+                        canAccessContent 
                             ? 'bg-white border-slate-200 hover:border-indigo-300 cursor-pointer group hover:shadow-sm' 
                             : 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
                     }`}
-                    onClick={() => canAccess && onSelectLesson(lesson.id)}
+                    onClick={() => canAccessContent && onSelectLesson(lesson.id)}
                     >
                     <div className="flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                             isCompleted(lesson.id) 
                                 ? 'bg-green-100 text-green-600' 
-                                : canAccess ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-400'
+                                : canAccessContent ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-400'
                         }`}>
                         {isCompleted(lesson.id) ? <CheckCircle size={20} /> : <span className="font-bold">{idx + 1}</span>}
                         </div>
                         <div>
-                        <h4 className={`font-medium transition-colors ${canAccess ? 'text-slate-900 group-hover:text-indigo-600' : 'text-slate-500'}`}>
+                        <h4 className={`font-medium transition-colors ${canAccessContent ? 'text-slate-900 group-hover:text-indigo-600' : 'text-slate-500'}`}>
                             {lesson.title}
                         </h4>
                         <p className="text-xs text-slate-500">Lesson {lesson.id}</p>
                         </div>
                     </div>
                     
-                    {canAccess ? (
+                    {canAccessContent ? (
                         <PlayCircle className="text-slate-300 group-hover:text-indigo-600 transition-colors" />
                     ) : (
                         <Lock className="text-slate-400" size={18} />
@@ -208,6 +222,7 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelec
                         </span>
                     )}
                 </div>
+                {/* Only Enrolled Students can write reviews */}
                 {isEnrolled && !showReviewForm && (
                     <button 
                         onClick={() => setShowReviewForm(true)}

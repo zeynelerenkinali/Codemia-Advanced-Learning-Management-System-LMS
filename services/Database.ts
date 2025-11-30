@@ -82,18 +82,20 @@ export class Database {
 
     // 1. DBMS Lessons
     const l1 = this.addLesson({ course_id: dbCourse.id, title: 'Introduction to Relational Model', content: 'The relational model is based on predicate logic and set theory.', order_index: 1, type: 'article', attachment_urls: ['https://example.com/slide1.pdf'] });
-    const l2 = this.addLesson({ course_id: dbCourse.id, title: 'SQL Basics', content: 'https://www.youtube.com/watch?v=ZS_kXvOeQ5Y', order_index: 2, type: 'video', attachment_urls: [] });
+    // Updated video URL to 'SQL in 100 Seconds' (Fireship) which is highly embed-friendly
+    const l2 = this.addLesson({ course_id: dbCourse.id, title: 'SQL Basics', content: 'https://www.youtube.com/watch?v=ExXhW9FNi20', order_index: 2, type: 'video', attachment_urls: [] });
     
     const q1 = this.addQuiz({ lesson_id: l1.id, title: 'Relational Model Quiz', passing_score: 50 });
     this.addQuestion({ quiz_id: q1.id, text: 'What is a Primary Key?', type: QuestionType.MULTIPLE_CHOICE, correct_answer: 'Unique ID', points: 10, options: ['Unique ID', 'Foreign Link', 'Just a number'] });
-    this.addQuestion({ quiz_id: q1.id, text: 'SQL is case sensitive?', type: QuestionType.TRUE_FALSE, correct_answer: 'False', points: 5 });
+    this.addQuestion({ quiz_id: q1.id, text: 'SQL is case sensitive?', type: QuestionType.TRUE_FALSE, correct_answer: 'False', points: 5, options: ['True', 'False'] });
 
     // 2. React Lessons
     const r1 = this.addLesson({ course_id: reactCourse.id, title: 'Understanding Hooks', content: 'Hooks allow you to use state and other React features without writing a class. useState and useEffect are the most common.', order_index: 1, type: 'article', attachment_urls: [] });
     this.addLesson({ course_id: reactCourse.id, title: 'Custom Hooks', content: 'Building your own hooks lets you extract component logic into reusable functions.', order_index: 2, type: 'article', attachment_urls: [] });
     
     const qr1 = this.addQuiz({ lesson_id: r1.id, title: 'Hooks Knowledge Check', passing_score: 70 });
-    this.addQuestion({ quiz_id: qr1.id, text: 'Can you use hooks inside loops?', type: QuestionType.TRUE_FALSE, correct_answer: 'False', points: 10 });
+    // CHANGED TO SHORT ANSWER FOR DEMO
+    this.addQuestion({ quiz_id: qr1.id, text: 'Can you use hooks inside loops?', type: QuestionType.SHORT_ANSWER, correct_answer: 'No', points: 10, options: ['nope', 'no'] });
 
     // 3. Python Lessons
     const py1 = this.addLesson({ course_id: pythonCourse.id, title: 'Python Syntax & Variables', content: 'Python uses indentation for blocks instead of curly braces. Variables are dynamically typed.', order_index: 1, type: 'article', attachment_urls: ['https://python.org/doc/styleguide.pdf'] });
@@ -183,9 +185,6 @@ export class Database {
     this.reviews = this.reviews.filter(r => r.course_id !== id);
 
     // 2. Find and Delete Lessons (which will cascade to Quizzes/Questions)
-    // We must identify IDs first to safely delete, though the deleteLesson method
-    // handles the logic, calling it in loop while modifying array can be tricky if not careful.
-    // However, since deleteLesson reassigns the array, we should grab IDs first.
     const lessonIds = this.lessons.filter(l => l.course_id === id).map(l => l.id);
     
     // We execute deletion sequentially to ensure state stability
@@ -210,7 +209,6 @@ export class Database {
     this.progress = this.progress.filter(p => p.lesson_id !== id);
 
     // 2. Cascade: Quiz
-    // Find quiz linked to lesson
     const quiz = this.quizzes.find(q => q.lesson_id === id);
     if (quiz) {
         this.deleteQuiz(quiz.id);

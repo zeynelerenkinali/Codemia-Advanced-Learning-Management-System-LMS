@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { ViewState, User, UserRole } from './types';
 import { Database } from './services/Database';
@@ -117,13 +116,16 @@ export default function App() {
         </div>
         
         <nav className="p-4 space-y-2 flex-1">
-          <button 
-            onClick={() => handleNav('home')} 
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === 'home' || view === 'courses' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'hover:bg-slate-800'}`}
-          >
-            <BookOpen size={20} />
-            <span className="font-medium">Courses</span>
-          </button>
+          {/* HIDE COURSES LINK FOR INSTRUCTORS */}
+          {currentUser.role !== UserRole.INSTRUCTOR && (
+            <button 
+              onClick={() => handleNav('home')} 
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === 'home' || view === 'courses' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'hover:bg-slate-800'}`}
+            >
+              <BookOpen size={20} />
+              <span className="font-medium">Courses</span>
+            </button>
+          )}
 
           {/* Role Based Navigation */}
           {currentUser.role === UserRole.ADMIN && (
@@ -230,8 +232,8 @@ export default function App() {
           {view === 'course_detail' && activeCourseId && (
             <CourseDetail 
               courseId={activeCourseId} 
-              currentUserId={currentUser.id}
-              onBack={() => setView('home')}
+              currentUser={currentUser}
+              onBack={() => currentUser.role === UserRole.INSTRUCTOR ? setView('instructor_panel') : setView('home')}
               onSelectLesson={(id) => {
                 setActiveLessonId(id);
                 setView('lesson');
@@ -259,7 +261,15 @@ export default function App() {
           )}
 
           {view === 'admin' && <AdminPanel />}
-          {view === 'instructor_panel' && <InstructorPanel currentUserId={currentUser.id} />}
+          {view === 'instructor_panel' && (
+            <InstructorPanel 
+                currentUserId={currentUser.id} 
+                onViewCourse={(id) => {
+                    setActiveCourseId(id);
+                    setView('course_detail');
+                }}
+            />
+          )}
           
           {(view as any) === 'become_instructor' && (
             <BecomeInstructor 

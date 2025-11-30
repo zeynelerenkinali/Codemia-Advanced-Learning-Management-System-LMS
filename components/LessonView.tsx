@@ -41,6 +41,8 @@ export const LessonView: React.FC<Props> = ({ lessonId, currentUserId, onBack, o
 
   if (!lesson) return <div>Lesson not found</div>;
 
+  const embedId = getYouTubeEmbedId(lesson.content);
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <button onClick={onBack} className="text-indigo-600 hover:underline mb-4 block">&larr; Back to Course</button>
@@ -62,13 +64,14 @@ export const LessonView: React.FC<Props> = ({ lessonId, currentUserId, onBack, o
         {/* VIDEO PLAYER SECTION */}
         {lesson.type === 'video' ? (
            <div className="mb-8 bg-black rounded-xl overflow-hidden shadow-2xl aspect-video relative flex items-center justify-center">
-             {getYouTubeEmbedId(lesson.content) ? (
+             {embedId ? (
                 <iframe 
                   className="w-full h-full"
-                  src={`https://www.youtube.com/embed/${getYouTubeEmbedId(lesson.content)}`}
+                  // Switch to youtube-nocookie and remove strict origin check to fix Error 153 in sandboxes
+                  src={`https://www.youtube-nocookie.com/embed/${embedId}?rel=0&modestbranding=1&playsinline=1&controls=1`}
                   title={lesson.title}
                   frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                 ></iframe>
              ) : (
