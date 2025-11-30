@@ -1,0 +1,277 @@
+
+import React, { useState, useEffect } from 'react';
+import { Course, Lesson, LessonProgress, Review, User } from '../types';
+import { CourseRepository } from '../services/repositories/CourseRepository';
+import { Database } from '../services/Database';
+import { PlayCircle, CheckCircle, Lock, BookOpen, Star, MessageSquare, TrendingUp } from 'lucide-react';
+import { progressSubject } from '../services/observers/ProgressObserver';
+
+interface Props {
+  courseId: number;
+  currentUserId: number;
+  onSelectLesson: (id: number) => void;
+  onBack: () => void;
+}
+
+export const CourseDetail: React.FC<Props> = ({ courseId, currentUserId, onSelectLesson, onBack }) => {
+  const [course, setCourse] = useState<Course | undefined>();
+  const [instructorName, setInstructorName] = useState('');
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [progress, setProgress] = useState<LessonProgress[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const [progressPercent, setProgressPercent] = useState(0);
+  
+  // Review Form State
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  
+  const repo = new CourseRepository();
+  const db = Database.getInstance();
+
+  const loadData = () => {
+    const c = repo.getById(courseId);
+    setCourse(c);
+    if (c) {
+        const inst = db.users.find(u => u.id === c.instructor_id);
+        setInstructorName(inst ? inst.name : 'Unknown');
+        
+        // Calculate Progress
+        if (repo.isEnrolled(currentUserId, courseId)) {
+            setProgressPercent(repo.getProgress(currentUserId, courseId));
+        } else {
+            setProgressPercent(0);
+        }
+    }
+    setLessons(repo.getLessonsByCourseId(courseId));
+    setProgress(db.progress.filter(p => p.student_id === currentUserId));
+    setIsEnrolled(repo.isEnrolled(currentUserId, courseId));
+    setReviews(repo.getReviews(courseId));
+  };
+
+  useEffect(() => {
+    loadData();
+    // OBSERVER PATTERN: Subscribe to progress updates
+    const unsubscribe = progressSubject.subscribe(({ studentId }) => {
+      if (studentId === currentUserId) {
+        loadData();
+      }
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseId, currentUserId]);
+
+  const handleEnroll = () => {
+    repo.enroll(currentUserId, courseId);
+    loadData();
+  };
+
+  const handleSubmitReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    setReviewError(null);
+    try {
+        repo.addReview(courseId, currentUserId, newRating, newComment);
+        setNewComment('');
+        setShowReviewForm(false);
+        loadData();
+    } catch (err: any) {
+        setReviewError(err.message);
+    }
+  };
+
+  if (!course) return <div>Course not found</div>;
+
+  const isCompleted = (lessonId: number) => progress.some(p => p.lesson_id === lessonId && p.completed);
+  const getUserName = (id: number) => db.users.find(u => u.id === id)?.name || 'Unknown User';
+
+  return (
+    <div className="space-y-6 pb-12">
+      <button onClick={onBack} className="text-indigo-600 hover:underline font-medium">&larr; Back to Courses</button>
+      
+      {/* Course Header with Enrollment Logic */}
+      <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 justify-between items-start">
+        <div className="flex-1">
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">{course.title}</h1>
+            <p className="text-slate-500 font-medium mb-4">Instructor: {instructorName}</p>
+            <p className="text-slate-600 text-lg mb-6">{course.description}</p>
+            <div className="flex items-center gap-4">
+                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-bold">Free Course</span>
+                <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-sm font-bold">{lessons.length} Lessons</span>
+                <span className="px-3 py-1 bg-yellow-50 text-yellow-700 rounded-full text-sm font-bold flex items-center gap-1">
+                    <Star size={14} fill="currentColor" /> {reviews.length} Reviews
+                </span>
+            </div>
+            
+            {/* Progress Bar for Enrolled Students */}
+            {isEnrolled && (
+              <div className="mt-8 max-w-lg">
+                <div className="flex justify-between items-center mb-1">
+                   <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                      <TrendingUp size={16} className="text-indigo-600"/> Your Progress
+                   </div>
+                   <span className="text-sm font-bold text-indigo-600">{progressPercent}%</span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-3">
+                    <div 
+                      className="bg-indigo-600 h-3 rounded-full transition-all duration-700 shadow-sm"
+                      style={{ width: `${progressPercent}%` }}
+                    ></div>
+                </div>
+              </div>
+            )}
+        </div>
+        
+        <div className="w-full md:w-64 bg-slate-50 p-4 rounded-lg border border-slate-200 text-center">
+            {isEnrolled ? (
+                <div className="text-green-600 font-bold flex items-center justify-center gap-2 mb-2">
+                    <CheckCircle /> Enrolled
+                </div>
+            ) : (
+                <button 
+                    onClick={handleEnroll}
+                    className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
+                >
+                    Enroll Now
+                </button>
+            )}
+            <p className="text-xs text-slate-500 mt-2">
+                {isEnrolled ? 'Access all lessons below.' : 'Enrollment is required to access content and review.'}
+            </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Col: Syllabus */}
+          <div className="lg:col-span-2 space-y-4">
+            <h3 className="text-xl font-semibold text-slate-800 border-b pb-2">Course Syllabus</h3>
+            {lessons.length === 0 ? (
+            <p className="text-slate-500 italic">No lessons available yet.</p>
+            ) : (
+            lessons.map((lesson, idx) => {
+                const canAccess = isEnrolled;
+                
+                return (
+                    <div 
+                    key={lesson.id}
+                    className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
+                        canAccess 
+                            ? 'bg-white border-slate-200 hover:border-indigo-300 cursor-pointer group hover:shadow-sm' 
+                            : 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
+                    }`}
+                    onClick={() => canAccess && onSelectLesson(lesson.id)}
+                    >
+                    <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            isCompleted(lesson.id) 
+                                ? 'bg-green-100 text-green-600' 
+                                : canAccess ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-400'
+                        }`}>
+                        {isCompleted(lesson.id) ? <CheckCircle size={20} /> : <span className="font-bold">{idx + 1}</span>}
+                        </div>
+                        <div>
+                        <h4 className={`font-medium transition-colors ${canAccess ? 'text-slate-900 group-hover:text-indigo-600' : 'text-slate-500'}`}>
+                            {lesson.title}
+                        </h4>
+                        <p className="text-xs text-slate-500">Lesson {lesson.id}</p>
+                        </div>
+                    </div>
+                    
+                    {canAccess ? (
+                        <PlayCircle className="text-slate-300 group-hover:text-indigo-600 transition-colors" />
+                    ) : (
+                        <Lock className="text-slate-400" size={18} />
+                    )}
+                    </div>
+                );
+            })
+            )}
+          </div>
+
+          {/* Right Col: Reviews */}
+          <div className="space-y-6">
+              <div className="flex items-center justify-between border-b pb-2">
+                <h3 className="text-xl font-semibold text-slate-800">Reviews</h3>
+                {isEnrolled && !showReviewForm && (
+                    <button 
+                        onClick={() => setShowReviewForm(true)}
+                        className="text-sm font-bold text-indigo-600 hover:underline"
+                    >
+                        + Write Review
+                    </button>
+                )}
+              </div>
+
+              {/* Add Review Form */}
+              {showReviewForm && (
+                  <div className="bg-white p-4 rounded-lg border border-indigo-100 shadow-sm animate-in fade-in slide-in-from-top-2">
+                      <h4 className="font-bold text-sm mb-2">Write a Review</h4>
+                      <form onSubmit={handleSubmitReview} className="space-y-3">
+                          {reviewError && <p className="text-xs text-red-600 bg-red-50 p-2 rounded">{reviewError}</p>}
+                          <div>
+                              <label className="text-xs text-slate-500 font-bold uppercase">Rating</label>
+                              <div className="flex gap-2 mt-1">
+                                {[1,2,3,4,5].map(num => (
+                                    <button 
+                                        key={num}
+                                        type="button" 
+                                        onClick={() => setNewRating(num)}
+                                        className={`p-1 rounded ${newRating >= num ? 'text-yellow-400' : 'text-slate-300'}`}
+                                    >
+                                        <Star fill="currentColor" size={20} />
+                                    </button>
+                                ))}
+                              </div>
+                          </div>
+                          <div>
+                              <label className="text-xs text-slate-500 font-bold uppercase">Comment</label>
+                              <textarea 
+                                className="w-full text-sm p-2 border rounded mt-1 outline-none focus:border-indigo-500"
+                                rows={3}
+                                value={newComment}
+                                onChange={e => setNewComment(e.target.value)}
+                                placeholder="Share your experience..."
+                                required
+                              />
+                          </div>
+                          <div className="flex gap-2">
+                              <button type="button" onClick={() => setShowReviewForm(false)} className="flex-1 text-xs font-bold text-slate-500 py-2">Cancel</button>
+                              <button type="submit" className="flex-1 text-xs font-bold bg-indigo-600 text-white py-2 rounded">Submit</button>
+                          </div>
+                      </form>
+                  </div>
+              )}
+
+              {/* Review List */}
+              <div className="space-y-4">
+                  {reviews.length === 0 ? (
+                      <div className="text-center py-6 bg-slate-50 rounded-lg border border-slate-100 border-dashed">
+                          <MessageSquare className="mx-auto text-slate-300 mb-2" />
+                          <p className="text-sm text-slate-500">No reviews yet.</p>
+                      </div>
+                  ) : (
+                      reviews.map(r => (
+                          <div key={r.id} className="bg-white p-4 rounded-lg border border-slate-200">
+                              <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
+                                        {getUserName(r.student_id).charAt(0)}
+                                      </div>
+                                      <span className="text-sm font-bold text-slate-800">{getUserName(r.student_id)}</span>
+                                  </div>
+                                  <div className="flex text-yellow-400">
+                                      {Array.from({length: r.rating}).map((_, i) => <Star key={i} size={12} fill="currentColor" />)}
+                                  </div>
+                              </div>
+                              <p className="text-sm text-slate-600 italic">"{r.comment}"</p>
+                              <p className="text-xs text-slate-400 mt-2 text-right">{new Date(r.created_at).toLocaleDateString()}</p>
+                          </div>
+                      ))
+                  )}
+              </div>
+          </div>
+      </div>
+    </div>
+  );
+};
