@@ -1,22 +1,29 @@
-import express from "express";
-import cors from "cors";
-import { json } from "body-parser";
+// src/app.ts
 
-import userRoutes from "./routes/users.js";
-import courseRoutes from "./routes/courses.js";
-import lessonRoutes from "./routes/lessons.js";
-import quizRoutes from "./routes/quizzes.js";
-import authRoutes from "./routes/auth.js";
+import express from 'express';
+import type { Application } from 'express'; // Application bir tiptir
+import cors from 'cors';
 
-const app = express();
+// Rota importlarına .js eklemeyi unutma
+import authRoutes from './routes/auth.js';
+import userRoutes from './routes/users.js';
+import courseRoutes from './routes/courses.js';
+import lessonRoutes from './routes/lessons.js';
+import quizRoutes from './routes/quizzes.js';
+
+const app: Application = express();
 
 app.use(cors());
-app.use(json());
+app.use(express.json());
 
-app.use("/users", userRoutes);
-app.use("/courses", courseRoutes);
-app.use("/lessons", lessonRoutes);
-app.use("/quizzes", quizRoutes);
-app.use("/auth", authRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/courses', courseRoutes);
+app.use('/api/lessons', lessonRoutes);
+app.use('/api/quizzes', quizRoutes);
+
+app.get('/', (req, res) => {
+  res.send('API çalışıyor!');
+});
 
 export default app;
