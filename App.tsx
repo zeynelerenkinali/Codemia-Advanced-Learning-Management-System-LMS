@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { ViewState, User, UserRole } from './types';
 import { Database } from './services/Database';
@@ -10,9 +11,10 @@ import { QuizView } from './components/QuizView';
 import { AdminPanel } from './components/AdminPanel';
 import { InstructorPanel } from './components/InstructorPanel';
 import { BecomeInstructor } from './components/BecomeInstructor';
+import { ProfileSettings } from './components/ProfileSettings';
 import { SQLViewer } from './components/SQLViewer';
 import { PatternsInfo } from './components/PatternsInfo';
-import { GraduationCap, Database as DbIcon, Code, Settings, BookOpen, Loader2, LogOut, PenTool, UserPlus } from 'lucide-react';
+import { GraduationCap, Database as DbIcon, Code, Settings, BookOpen, Loader2, LogOut, PenTool, UserPlus, User as UserIcon } from 'lucide-react';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -175,7 +177,10 @@ export default function App() {
         </nav>
 
         <div className="p-4 border-t border-slate-800 bg-slate-900">
-           <div className="flex items-center gap-3 mb-4">
+           <div 
+             className="flex items-center gap-3 mb-4 cursor-pointer hover:bg-slate-800 p-2 rounded transition-colors"
+             onClick={() => setView('profile_settings' as any)}
+           >
              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
                 {currentUser.name.charAt(0)}
              </div>
@@ -183,6 +188,7 @@ export default function App() {
                <p className="text-white font-medium truncate">{currentUser.name}</p>
                <p className="text-slate-500 text-xs uppercase font-bold tracking-wider">{currentUser.role}</p>
              </div>
+             <Settings size={14} className="text-slate-500 ml-auto" />
            </div>
            
            <button 
@@ -203,6 +209,7 @@ export default function App() {
                 {view === 'admin' && 'Administration'}
                 {view === 'instructor_panel' && 'Instructor Dashboard'}
                 {(view as any) === 'become_instructor' && 'Join Our Faculty'}
+                {(view as any) === 'profile_settings' && 'Account Settings'}
                 {view === 'sql_spec' && 'Database Specification'}
                 {view === 'patterns' && 'Architecture Overview'}
                 {(view === 'course_detail' || view === 'lesson' || view === 'quiz') && 'Classroom'}
@@ -261,6 +268,13 @@ export default function App() {
                     setCurrentUser(u);
                     setView('instructor_panel');
                 }}
+            />
+          )}
+
+          {(view as any) === 'profile_settings' && (
+            <ProfileSettings 
+                currentUser={currentUser}
+                onUpdate={setCurrentUser}
             />
           )}
 

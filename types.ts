@@ -12,6 +12,10 @@ export interface User {
   email: string;
   role: UserRole;
   password_hash: string; // Simulated
+  // Address Fields
+  country?: string;
+  city?: string;
+  postal_code?: string;
 }
 
 // Subclass Entity for Instructor (Table-per-subclass pattern)
@@ -95,4 +99,4 @@ export interface Review {
 }
 
 // View Types
-export type ViewState = 'home' | 'courses' | 'course_detail' | 'lesson' | 'quiz' | 'admin' | 'instructor_panel' | 'sql_spec' | 'patterns';
+export type ViewState = 'home' | 'courses' | 'course_detail' | 'lesson' | 'quiz' | 'admin' | 'instructor_panel' | 'become_instructor' | 'profile_settings' | 'sql_spec' | 'patterns';

@@ -1,4 +1,5 @@
 
+
 import { Database } from '../Database';
 import { User, InstructorProfile, UserRole } from '../../types';
 
@@ -19,5 +20,13 @@ export class UserRepository {
     if (user.role === UserRole.INSTRUCTOR) throw new Error("User is already an instructor");
 
     return this.db.promoteUser(userId, bio, expertise);
+  }
+
+  updateProfile(userId: number, data: Partial<User>): User {
+    return this.db.updateUser(userId, data);
+  }
+
+  updateInstructorSpecifics(userId: number, bio: string, expertise: string): void {
+      this.db.updateInstructorProfile(userId, bio, expertise);
   }
 }

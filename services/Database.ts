@@ -1,4 +1,5 @@
 
+
 import { User, Course, Lesson, Quiz, Question, Enrollment, LessonProgress, Review, UserRole, QuestionType, InstructorProfile } from '../types';
 
 /**
@@ -43,17 +44,17 @@ export class Database {
 
   private seed() {
     // Users
-    this.addUser({ name: 'Alice Admin', email: 'admin@codemia.edu', role: UserRole.ADMIN, password_hash: 'pw' });
+    this.addUser({ name: 'Alice Admin', email: 'admin@codemia.edu', role: UserRole.ADMIN, password_hash: 'pw', country: 'USA', city: 'Seattle', postal_code: '98101' });
     
     // Instructor 1
-    const instructor = this.addUser({ name: 'Bob Instructor', email: 'inst@codemia.edu', role: UserRole.INSTRUCTOR, password_hash: 'pw' });
+    const instructor = this.addUser({ name: 'Bob Instructor', email: 'inst@codemia.edu', role: UserRole.INSTRUCTOR, password_hash: 'pw', country: 'Canada', city: 'Toronto', postal_code: 'M5H 2N2' });
     this.addInstructorProfile({ user_id: instructor.id, bio: 'PhD in Computer Science', expertise_area: 'Database Systems' });
     
     // Instructor 2
-    const instructor2 = this.addUser({ name: 'Sarah Dev', email: 'sarah@codemia.edu', role: UserRole.INSTRUCTOR, password_hash: 'pw' });
+    const instructor2 = this.addUser({ name: 'Sarah Dev', email: 'sarah@codemia.edu', role: UserRole.INSTRUCTOR, password_hash: 'pw', country: 'UK', city: 'London', postal_code: 'SW1A 1AA' });
     this.addInstructorProfile({ user_id: instructor2.id, bio: 'Ex-Google Engineer', expertise_area: 'Full Stack Development' });
 
-    const student = this.addUser({ name: 'Charlie Student', email: 'student@codemia.edu', role: UserRole.STUDENT, password_hash: 'pw' });
+    const student = this.addUser({ name: 'Charlie Student', email: 'student@codemia.edu', role: UserRole.STUDENT, password_hash: 'pw', country: 'USA', city: 'Boston', postal_code: '02108' });
 
     // --- COURSES ---
 
@@ -149,6 +150,25 @@ export class Database {
     });
 
     return this.users[userIndex];
+  }
+
+  // User Profile Updates
+  public updateUser(userId: number, updates: Partial<User>): User {
+    const idx = this.users.findIndex(u => u.id === userId);
+    if (idx === -1) throw new Error("User not found");
+    
+    // Prevent accidentally changing id or role via generic update if needed
+    // (though in this local demo we trust the repo layer)
+    this.users[idx] = { ...this.users[idx], ...updates };
+    return this.users[idx];
+  }
+
+  public updateInstructorProfile(userId: number, bio: string, expertise: string): void {
+    const idx = this.instructorProfiles.findIndex(p => p.user_id === userId);
+    if (idx !== -1) {
+        this.instructorProfiles[idx].bio = bio;
+        this.instructorProfiles[idx].expertise_area = expertise;
+    }
   }
 
   // Update Course

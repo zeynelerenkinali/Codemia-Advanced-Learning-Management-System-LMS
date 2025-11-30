@@ -13,7 +13,11 @@ CREATE TABLE users (
     email VARCHAR(150) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('student', 'instructor', 'admin')),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Address Fields
+    country VARCHAR(100),
+    city VARCHAR(100),
+    postal_code VARCHAR(20)
 );
 
 -- 2. STUDENTS (Subclass of Users)
@@ -127,14 +131,15 @@ CREATE TABLE reviews (
 
 -- DATA INSERTION EXAMPLES
 /*
--- Create User
-INSERT INTO users (name, email, password_hash, role) VALUES ('Jane Doe', 'jane@example.com', 'hashedpw', 'instructor');
+-- Create User with Address
+INSERT INTO users (name, email, password_hash, role, country, city, postal_code) 
+VALUES ('Jane Doe', 'jane@example.com', 'hashedpw', 'instructor', 'USA', 'New York', '10001');
 
 -- Add to Instructor Subclass
 INSERT INTO instructors (instructor_id, bio, expertise_area) 
 VALUES ((SELECT user_id FROM users WHERE email='jane@example.com'), 'PhD in AI', 'Machine Learning');
 
--- Create Course
-INSERT INTO courses (title, description, instructor_id) VALUES ('Intro to ML', 'Basics of AI', (SELECT user_id FROM users WHERE email='jane@example.com'));
+-- Update Address
+UPDATE users SET city='San Francisco', postal_code='94105' WHERE email='jane@example.com';
 */
 `;
