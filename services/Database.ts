@@ -1,5 +1,3 @@
-
-
 import { User, Course, Lesson, Quiz, Question, Enrollment, LessonProgress, Review, UserRole, QuestionType, InstructorProfile } from '../types';
 
 /**
@@ -157,8 +155,6 @@ export class Database {
     const idx = this.users.findIndex(u => u.id === userId);
     if (idx === -1) throw new Error("User not found");
     
-    // Prevent accidentally changing id or role via generic update if needed
-    // (though in this local demo we trust the repo layer)
     this.users[idx] = { ...this.users[idx], ...updates };
     return this.users[idx];
   }
@@ -181,21 +177,17 @@ export class Database {
 
   // Delete Course (Cascading Delete)
   public deleteCourse(id: number): void {
-    const idx = this.courses.findIndex(c => c.id === id);
-    if (idx !== -1) {
-        // 1. Cascade: Delete Enrollments
-        this.enrollments = this.enrollments.filter(e => e.course_id !== id);
-        
-        // 2. Cascade: Delete Reviews
-        this.reviews = this.reviews.filter(r => r.course_id !== id);
+    // 1. Cascade: Enrollments & Reviews
+    this.enrollments = this.enrollments.filter(e => e.course_id !== id);
+    this.reviews = this.reviews.filter(r => r.course_id !== id);
 
-        // 3. Cascade: Delete Lessons
-        const courseLessons = this.lessons.filter(l => l.course_id === id);
-        courseLessons.forEach(l => this.deleteLesson(l.id));
+    // 2. Cascade: Lessons (which will cascade to Quizzes/Questions)
+    const lessonsToDelete = this.lessons.filter(l => l.course_id === id);
+    lessonsToDelete.forEach(l => this.deleteLesson(l.id));
 
-        // 4. Delete Course
-        this.courses.splice(idx, 1);
-    }
+    // 3. Remove Course
+    this.courses = this.courses.filter(c => c.id !== id);
+    console.log(`[Database] Deleted Course ${id}`);
   }
 
   // Lesson CRUD
@@ -208,33 +200,29 @@ export class Database {
 
   // Delete Lesson (Cascading Delete)
   public deleteLesson(id: number): void {
-    const idx = this.lessons.findIndex(l => l.id === id);
-    if (idx !== -1) {
-        // 1. Cascade: Delete Progress
-        this.progress = this.progress.filter(p => p.lesson_id !== id);
+    // 1. Cascade: Progress
+    this.progress = this.progress.filter(p => p.lesson_id !== id);
 
-        // 2. Cascade: Delete Quizzes
-        const lessonQuiz = this.quizzes.find(q => q.lesson_id === id);
-        if (lessonQuiz) {
-            this.deleteQuiz(lessonQuiz.id);
-        }
-
-        // 3. Delete Lesson
-        this.lessons.splice(idx, 1);
+    // 2. Cascade: Quiz
+    const lessonQuiz = this.quizzes.find(q => q.lesson_id === id);
+    if (lessonQuiz) {
+        this.deleteQuiz(lessonQuiz.id);
     }
+
+    // 3. Remove Lesson (Immutable reassignment)
+    this.lessons = this.lessons.filter(l => l.id !== id);
+    console.log(`[Database] Deleted Lesson ${id}`);
   }
 
   // Quiz CRUD
   // Delete Quiz (Cascading Delete)
   public deleteQuiz(id: number): void {
-    const idx = this.quizzes.findIndex(q => q.id === id);
-    if (idx !== -1) {
-        // 1. Cascade: Delete Questions
-        this.questions = this.questions.filter(q => q.quiz_id !== id);
+    // 1. Cascade: Delete Questions (FK: quiz_id)
+    this.questions = this.questions.filter(q => q.quiz_id !== id);
         
-        // 2. Delete Quiz
-        this.quizzes.splice(idx, 1);
-    }
+    // 2. Remove Quiz (Immutable reassignment)
+    this.quizzes = this.quizzes.filter(q => q.id !== id);
+    console.log(`[Database] Deleted Quiz ${id} and its questions`);
   }
 
   // Question CRUD
@@ -246,7 +234,8 @@ export class Database {
   }
 
   public deleteQuestion(id: number): void {
-    const idx = this.questions.findIndex(q => q.id === id);
-    if (idx !== -1) this.questions.splice(idx, 1);
+    // Immutable reassignment
+    this.questions = this.questions.filter(q => q.id !== id);
+    console.log(`[Database] Deleted Question ${id}`);
   }
 }

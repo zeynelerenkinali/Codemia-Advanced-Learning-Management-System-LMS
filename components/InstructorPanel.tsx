@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Database } from '../services/Database';
 import { Course } from '../types';
@@ -51,7 +50,7 @@ export const InstructorPanel: React.FC<Props> = ({ currentUserId }) => {
   const handleDelete = (id: number) => {
     if (confirm("Are you sure you want to delete this course? All lessons and enrollments will be removed.")) {
         repo.delete(id);
-        // Force refresh
+        // Force refresh from repository immediately to reflect changes in UI
         setMyCourses(repo.getByInstructor(currentUserId));
     }
   };

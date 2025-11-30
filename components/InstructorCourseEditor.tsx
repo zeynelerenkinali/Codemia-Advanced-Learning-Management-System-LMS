@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { CourseRepository } from '../services/repositories/CourseRepository';
 import { Course, Lesson, LessonType, QuestionType, Quiz, Question } from '../types';
@@ -42,6 +41,7 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
 
   useEffect(() => {
     if (selectedLessonId) {
+        // Need to refetch lessons to ensure we have latest data
         const l = lessons.find(x => x.id === selectedLessonId);
         if (l) {
             setLTitle(l.title);
@@ -76,7 +76,8 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
     }
   };
 
-  const handleCreateLesson = () => {
+  const handleCreateLesson = (e: React.MouseEvent) => {
+    e.preventDefault();
     const newLesson = repo.createLesson({
         course_id: courseId,
         title: 'New Lesson',
@@ -89,15 +90,25 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
     setSelectedLessonId(newLesson.id);
   };
 
-  const handleDeleteLesson = (id: number) => {
-    if (confirm("Delete lesson?")) {
+  const handleDeleteLesson = (e: React.MouseEvent, id: number) => {
+    e.preventDefault();
+    e.stopPropagation(); // Stop bubbling to the selection handler
+    if (confirm("Delete this lesson? This will remove any associated quizzes and progress.")) {
         repo.deleteLesson(id);
-        if (selectedLessonId === id) setSelectedLessonId(null);
+        
+        // Critical: Refresh data from DB explicitly
         loadData();
+        
+        if (selectedLessonId === id) {
+             setSelectedLessonId(null);
+             setCurrentQuiz(undefined);
+             setQuestions([]);
+        }
     }
   };
 
-  const handleSaveLesson = () => {
+  const handleSaveLesson = (e: React.MouseEvent) => {
+    e.preventDefault();
     if (!selectedLessonId) return;
     repo.updateLesson(selectedLessonId, {
         title: lTitle,
@@ -106,10 +117,12 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
         attachment_urls: lAttachments.split(',').map(s => s.trim()).filter(Boolean)
     });
     alert("Lesson saved!");
+    // Refresh list in case title changed
     loadData();
   };
 
-  const handleCreateQuiz = () => {
+  const handleCreateQuiz = (e: React.MouseEvent) => {
+    e.preventDefault();
     if (!selectedLessonId) return;
     const q = repo.createQuiz({
         lesson_id: selectedLessonId,
@@ -120,20 +133,28 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
     setQuizTitle(q.title);
   };
 
-  const handleDeleteQuiz = () => {
+  const handleDeleteQuiz = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!currentQuiz) return;
-    if (confirm("Delete quiz and all questions?")) {
+    if (confirm("Delete assessment and all its questions?")) {
         repo.deleteQuiz(currentQuiz.id);
+        
+        // UI Update: Remove quiz from view immediately
         setCurrentQuiz(undefined);
         setQuestions([]);
         setEditingQuestionId(null);
+        setQuizTitle('');
     }
   };
 
-  const handleAddQuestion = () => {
+  const handleAddQuestion = (e: React.MouseEvent) => {
+    e.preventDefault();
     if (!currentQuiz) return;
     const q = QuestionFactory.createDefault(QuestionType.MULTIPLE_CHOICE, currentQuiz.id);
     repo.createQuestion(q);
+    
+    // Refresh questions
     const updated = repo.getQuestionsByQuizId(currentQuiz.id);
     setQuestions(updated);
     
@@ -142,10 +163,18 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
     startEditingQuestion(newQ);
   };
 
-  const handleDeleteQuestion = (qid: number) => {
+  const handleDeleteQuestion = (e: React.MouseEvent, qid: number) => {
+      e.preventDefault();
+      e.stopPropagation();
       if(confirm("Delete this question?")) {
         repo.deleteQuestion(qid);
-        if (currentQuiz) setQuestions(repo.getQuestionsByQuizId(currentQuiz.id));
+        
+        // UI Update: Fetch fresh questions from repo immediately
+        if (currentQuiz) {
+            const freshQuestions = repo.getQuestionsByQuizId(currentQuiz.id);
+            setQuestions(freshQuestions);
+        }
+        
         if (editingQuestionId === qid) setEditingQuestionId(null);
       }
   };
@@ -159,7 +188,8 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
       setEditQOptions(q.options || []);
   };
 
-  const handleSaveQuestion = () => {
+  const handleSaveQuestion = (e: React.MouseEvent) => {
+      e.preventDefault();
       if (!editingQuestionId) return;
       
       repo.updateQuestion(editingQuestionId, {
@@ -196,7 +226,7 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
       {/* Header */}
       <div className="flex items-center justify-between mb-4 pb-4 border-b">
         <div className="flex items-center gap-3">
-            <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full">
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full" title="Back">
                 <ArrowLeft size={20} />
             </button>
             <div>
@@ -231,7 +261,12 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
                         {l.title}
                     </div>
                     {selectedLessonId === l.id && (
-                        <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteLesson(l.id); }} className="text-slate-400 hover:text-red-500">
+                        <button 
+                            type="button" 
+                            onClick={(e) => handleDeleteLesson(e, l.id)} 
+                            className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1 rounded z-10"
+                            title="Delete Lesson"
+                        >
                             <Trash2 size={14} />
                         </button>
                     )}
@@ -495,7 +530,7 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
                                                             </button>
                                                             <button 
                                                                 type="button"
-                                                                onClick={(e) => { e.stopPropagation(); handleDeleteQuestion(q.id); }} 
+                                                                onClick={(e) => handleDeleteQuestion(e, q.id)} 
                                                                 className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"
                                                             >
                                                                 <Trash2 size={14} />
@@ -522,4 +557,4 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
       </div>
     </div>
   );
-};
+}
