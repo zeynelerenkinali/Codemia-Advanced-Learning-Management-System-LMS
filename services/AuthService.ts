@@ -1,31 +1,44 @@
-import { Database } from './Database';
-import { User, UserRole } from '../types';
+// services/AuthService.ts
 
-export class AuthService {
-  private db = Database.getInstance();
+const API_URL = 'http://localhost:5000/api/auth';
 
-  login(email: string, password: string): User {
-    // In a real app, we would hash the password input before comparing
-    const user = this.db.users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password_hash === password);
-    if (!user) {
-      throw new Error("Invalid email or password. Try 'admin@codemia.edu' / 'pw'");
+export const AuthService = {
+  async login(email, password) {
+    const response = await fetch(`${API_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Login failed');
     }
-    return user;
-  }
 
-  register(name: string, email: string, password: string, role: UserRole): User {
-    if (this.db.users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-      throw new Error("A user with this email already exists.");
+    const data = await response.json();
+    // Token'ı kaydet (Backend'den token dönüyorsa)
+    if (data.token) {
+      localStorage.setItem('token', data.token);
     }
-    // In a real app, password should be hashed here
-    return this.db.addUser({ name, email, password_hash: password, role });
-  }
+    return data.user;
+  },
 
-  resetPassword(email: string): boolean {
-      const user = this.db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
-      // In a real app, this would trigger an email service
-      // We return true if valid email format, to prevent user enumeration security risks, 
-      // but for this demo we'll return based on user existence to show the UI feedback.
-      return !!user;
+  async register(name, email, password, role) {
+    const response = await fetch(`${API_URL}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, role }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Registration failed');
+    }
+    
+    return await response.json();
+  },
+  
+  logout() {
+    localStorage.removeItem('token');
   }
-}
+};
