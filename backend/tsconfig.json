@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    /* Dosya Yolları */
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    /* Modül Ayarları (ESM - NodeNext uyumu için kritik) */
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+
+    /* Çıktı Ayarları */
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    /* Tip Kontrolü */
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    
+    /* Modern Import Kuralları */
+    "verbatimModuleSyntax": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}
