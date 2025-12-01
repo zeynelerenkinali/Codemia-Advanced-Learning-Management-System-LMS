@@ -3,6 +3,8 @@
 
 
 
+
+
 import React, { useState, useEffect } from 'react';
 import { ViewState, User, UserRole } from './types';
 import { Database } from './services/Database';
@@ -272,7 +274,7 @@ export default function App() {
               onBack={() => {
                 // Return to appropriate previous screen
                 if (currentUser.role === UserRole.INSTRUCTOR) setView('instructor_panel');
-                else if (view === 'student_courses' || (view as any) === 'course_detail') setView('student_courses'); // Fallback logic often needs fine tuning in non-stack routers, but this is safe
+                else if (currentUser.role === UserRole.STUDENT) setView('student_courses');
                 else setView('home');
               }}
               onSelectLesson={(id) => {
