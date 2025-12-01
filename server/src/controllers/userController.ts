@@ -1,4 +1,3 @@
-
 import { db } from '../db';
 
 export const updateUser = async (req: any, res: any) => {
@@ -73,14 +72,36 @@ export const updateInstructorProfile = async (req: any, res: any) => {
 export const deleteAccount = async (req: any, res: any) => {
     const { id } = req.params;
     try {
-        // ON DELETE CASCADE in SQL schema handles everything:
-        // - Removes entry from users table
-        // - Removes entry from students/instructors/admins tables
-        // - Removes owned courses (if instructor) via courses.instructor_id CASCADE
-        // - Removes enrollments, reviews, progress (if student)
+        // ON DELETE CASCADE in SQL schema handles everything
         await db.query('DELETE FROM users WHERE user_id = $1', [id]);
         res.json({ message: 'Account deleted successfully' });
     } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// --- EKLENEN KISIM ---
+export const getUserEnrollments = async (req: any, res: any) => {
+    const { id } = req.params;
+    try {
+        const query = `
+            SELECT 
+                c.course_id as id,
+                c.title,
+                c.description,
+                c.thumbnail,
+                c.level,
+                c.instructor_id,
+                e.enrollment_date,
+                e.progress
+            FROM enrollments e
+            JOIN courses c ON e.course_id = c.course_id
+            WHERE e.student_id = $1
+        `;
+        const result = await db.query(query, [id]);
+        res.json(result.rows);
+    } catch (err: any) {
+        console.error(err);
         res.status(500).json({ error: err.message });
     }
 };
