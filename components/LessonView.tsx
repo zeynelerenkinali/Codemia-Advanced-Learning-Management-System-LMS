@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Lesson, Quiz } from '../types';
-import { Database } from '../services/Database';
 import { progressSubject } from '../services/observers/ProgressObserver';
-import { FileText, Video, Paperclip, ExternalLink, Play } from 'lucide-react';
+import { FileText, Video, Paperclip, ExternalLink, Play, Loader2 } from 'lucide-react';
 
 interface Props {
   lessonId: number;
@@ -12,39 +10,83 @@ interface Props {
   onStartQuiz: (quizId: number) => void;
 }
 
+const API_URL = 'http://localhost:5000/api';
+
 export const LessonView: React.FC<Props> = ({ lessonId, currentUserId, onBack, onStartQuiz }) => {
-  const db = Database.getInstance();
-  const lesson = db.lessons.find(l => l.id === lessonId);
-  const quiz = db.quizzes.find(q => q.lesson_id === lessonId);
+  const [loading, setLoading] = useState(true);
+  const [lesson, setLesson] = useState<Lesson | undefined>();
+  const [quiz, setQuiz] = useState<Quiz | undefined>();
 
   useEffect(() => {
-    // Mark as completed immediately on view (simulating tracking)
-    // OBSERVER PATTERN TRIGGER
-    const existing = db.progress.find(p => p.student_id === currentUserId && p.lesson_id === lessonId);
-    if (!existing) {
-      db.progress.push({
-        student_id: currentUserId,
-        lesson_id: lessonId,
-        completed: true,
-        last_accessed: new Date().toISOString()
-      });
-      progressSubject.notify(currentUserId, lessonId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const loadLessonData = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        const headers = { 
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+        };
+
+        // 1. Ders Detayını Çek
+        const lessonRes = await fetch(`${API_URL}/lessons/${lessonId}`, { headers });
+        if (!lessonRes.ok) throw new Error("Ders bulunamadı");
+        const lessonData = await lessonRes.json();
+        setLesson(lessonData);
+
+        // 2. Bu derse ait Quiz varsa çek
+        // (Backend'de /lessons/:id/quiz endpoint'i hata dönerse quiz yok demektir, try-catch ile yönetiyoruz)
+        try {
+            const quizRes = await fetch(`${API_URL}/lessons/${lessonId}/quiz`, { headers });
+            if (quizRes.ok) {
+                const quizData = await quizRes.json();
+                setQuiz(quizData);
+            }
+        } catch (e) {
+            console.log("Bu derste quiz yok.");
+        }
+
+        // 3. İlerlemeyi Kaydet (Progress Tracking)
+        // Backend'e "Bu ders tamamlandı" bilgisini gönderiyoruz.
+        await fetch(`${API_URL}/progress`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                lessonId: lessonId,
+                completed: true
+            })
+        });
+
+        // 4. OBSERVER PATTERN TRIGGER (Client-side UI Update)
+        // Sidebar'daki progress bar anında güncellensin diye.
+        progressSubject.notify(currentUserId, lessonId);
+
+      } catch (error) {
+        console.error("Ders yüklenirken hata:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadLessonData();
   }, [lessonId, currentUserId]);
 
   const getYouTubeEmbedId = (url: string) => {
+    if (!url) return null;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  if (!lesson) return <div>Lesson not found</div>;
+  if (loading) {
+      return <div className="flex h-screen items-center justify-center text-indigo-600"><Loader2 className="animate-spin mr-2"/> Ders İçeriği Yükleniyor...</div>;
+  }
+
+  if (!lesson) return <div className="text-center p-10 text-red-500">Ders bulunamadı.</div>;
 
   const embedId = getYouTubeEmbedId(lesson.content);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
       <button onClick={onBack} className="text-indigo-600 hover:underline mb-4 block">&larr; Back to Course</button>
       
       <div className="bg-white p-8 rounded-xl shadow-lg border border-slate-200">
@@ -67,7 +109,6 @@ export const LessonView: React.FC<Props> = ({ lessonId, currentUserId, onBack, o
              {embedId ? (
                 <iframe 
                   className="w-full h-full"
-                  // Switch to youtube-nocookie and remove strict origin check to fix Error 153 in sandboxes
                   src={`https://www.youtube-nocookie.com/embed/${embedId}?rel=0&modestbranding=1&playsinline=1&controls=1`}
                   title={lesson.title}
                   frameBorder="0"

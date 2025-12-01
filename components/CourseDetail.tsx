@@ -1,11 +1,6 @@
-
-
-
 import React, { useState, useEffect } from 'react';
 import { Course, Lesson, LessonProgress, Review, User, UserRole } from '../types';
-import { CourseRepository } from '../services/repositories/CourseRepository';
-import { Database } from '../services/Database';
-import { PlayCircle, CheckCircle, Lock, BookOpen, Star, MessageSquare, TrendingUp, AlertTriangle } from 'lucide-react';
+import { PlayCircle, CheckCircle, Lock, Star, MessageSquare, TrendingUp, AlertTriangle, Loader2 } from 'lucide-react';
 import { progressSubject } from '../services/observers/ProgressObserver';
 
 interface Props {
@@ -15,13 +10,16 @@ interface Props {
   onBack: () => void;
 }
 
+const API_URL = 'http://localhost:5000/api';
+
 export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectLesson, onBack }) => {
+  const [loading, setLoading] = useState(true);
   const [course, setCourse] = useState<Course | undefined>();
   const [instructorName, setInstructorName] = useState('');
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [progress, setProgress] = useState<LessonProgress[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [avgRating, setAvgRating] = useState(0);
+  const [avgRating, setAvgRating] = useState<string | number>(0);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
   
@@ -30,41 +28,99 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
   const [reviewError, setReviewError] = useState<string | null>(null);
-  
-  const repo = new CourseRepository();
-  const db = Database.getInstance();
 
-  const loadData = () => {
-    const c = repo.getById(courseId);
-    setCourse(c);
-    if (c) {
-        const inst = db.users.find(u => u.id === c.instructor_id);
-        setInstructorName(inst ? inst.name : 'Unknown');
-        
-        // Calculate Progress & Check Enrollment
-        if (repo.isEnrolled(currentUser.id, courseId)) {
-            setIsEnrolled(true);
-            setProgressPercent(repo.getProgress(currentUser.id, courseId));
-            // Update Last Accessed Timestamp
-            repo.markCourseAsAccessed(currentUser.id, courseId);
-        } else {
-            setIsEnrolled(false);
-            setProgressPercent(0);
+  const loadData = async () => {
+    try {
+        const token = localStorage.getItem('token');
+        const headers = { 
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+        };
+
+        // 1. Kurs Detayını Çek
+        const courseRes = await fetch(`${API_URL}/courses/${courseId}`, { headers });
+        if (!courseRes.ok) throw new Error("Kurs bulunamadı");
+        const courseData = await courseRes.json();
+        setCourse(courseData);
+
+        // 2. Eğitmen Bilgisini Çek
+        if (courseData.instructor_id) {
+            const userRes = await fetch(`${API_URL}/users/${courseData.instructor_id}`, { headers });
+            if (userRes.ok) {
+                const userData = await userRes.json();
+                setInstructorName(userData.name);
+            }
         }
+
+        // 3. Dersleri Çek
+        const lessonsRes = await fetch(`${API_URL}/courses/${courseId}/lessons`, { headers });
+        const lessonsData = await lessonsRes.json();
+        setLessons(lessonsData);
+
+        // 4. Yorumları Çek
+        const reviewsRes = await fetch(`${API_URL}/courses/${courseId}/reviews`, { headers });
+        const reviewsData = await reviewsRes.json();
+        setReviews(reviewsData);
+        
+        // Puan Hesapla
+        if (reviewsData.length > 0) {
+            const total = reviewsData.reduce((acc: any, r: any) => acc + r.rating, 0);
+            setAvgRating((total / reviewsData.length).toFixed(1));
+        } else {
+            setAvgRating(0);
+        }
+
+        // 5. Kayıt ve İlerleme Durumu (Sadece Öğrenciler İçin)
+        if (currentUser.role !== UserRole.INSTRUCTOR) {
+            const enrollRes = await fetch(`${API_URL}/users/${currentUser.id}/enrollments`, { headers });
+            if (enrollRes.ok) {
+                 const enrollments = await enrollRes.json();
+                 // Backend'den gelen yapıya göre kursu bul
+                 const enrollment = enrollments.find((e: any) => e.id === courseId || e.course_id === courseId);
+                 
+                 if (enrollment) {
+                     setIsEnrolled(true);
+                     
+                     // İlerleme yüzdesini backend hesaplamışsa al, yoksa 0
+                     setProgressPercent(enrollment.progress || 0);
+
+                     // Ders bazlı ilerleme (Checkmarklar için)
+                     // Tüm progressleri çekip bu kursa ait olanları filtreliyoruz
+                     const progRes = await fetch(`${API_URL}/progress?studentId=${currentUser.id}`, { headers });
+                     if (progRes.ok) {
+                        const allProgress = await progRes.json();
+                        // Sadece bu kursun derslerine ait progressleri filtrele
+                        const lessonIds = lessonsData.map((l: any) => l.id);
+                        const courseProgress = allProgress.filter((p: any) => lessonIds.includes(p.lesson_id) && p.completed);
+                        setProgress(courseProgress);
+
+                        // Eğer enrollment içinde progress yoksa buradan hesapla
+                        if (enrollment.progress === undefined && lessonsData.length > 0) {
+                            setProgressPercent(Math.round((courseProgress.length / lessonsData.length) * 100));
+                        }
+                     }
+                 } else {
+                     setIsEnrolled(false);
+                     setProgressPercent(0);
+                 }
+            }
+        }
+
+    } catch (error) {
+        console.error("Veri yüklenemedi:", error);
+    } finally {
+        setLoading(false);
     }
-    setLessons(repo.getLessonsByCourseId(courseId));
-    setProgress(db.progress.filter(p => p.student_id === currentUser.id));
-    
-    // Reviews & Rating
-    setReviews(repo.getReviews(courseId));
-    setAvgRating(repo.getAverageRating(courseId));
   };
 
   useEffect(() => {
     loadData();
-    // OBSERVER PATTERN: Subscribe to progress updates
+    // OBSERVER PATTERN: İlerleme güncellemelerini dinle
     const unsubscribe = progressSubject.subscribe(({ studentId }) => {
       if (studentId === currentUser.id) {
+        // Sadece ilgili öğrenci için veriyi tazele
+        // Tüm sayfayı yenilemek yerine sadece progress'i çekmek daha performanslı olurdu
+        // ama şimdilik loadData() çağırıyoruz.
         loadData();
       }
     });
@@ -72,17 +128,53 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId, currentUser.id]);
 
-  const handleEnroll = () => {
+  const handleEnroll = async () => {
     if (currentUser.role === UserRole.INSTRUCTOR) return;
-    repo.enroll(currentUser.id, courseId);
-    loadData();
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/enrollments`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({
+                studentId: currentUser.id,
+                courseId: courseId
+            })
+        });
+
+        if (res.ok) {
+            loadData(); // Sayfayı yenile
+        } else {
+            alert("Kayıt işlemi başarısız.");
+        }
+    } catch (error) {
+        console.error(error);
+    }
   };
 
-  const handleSubmitReview = (e: React.FormEvent) => {
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     setReviewError(null);
     try {
-        repo.addReview(courseId, currentUser.id, newRating, newComment);
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/reviews`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({
+                courseId,
+                studentId: currentUser.id,
+                rating: newRating,
+                comment: newComment
+            })
+        });
+
+        if (!res.ok) throw new Error("Yorum gönderilemedi.");
+        
         setNewComment('');
         setShowReviewForm(false);
         loadData();
@@ -91,10 +183,15 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
     }
   };
 
-  if (!course) return <div>Course not found</div>;
-
   const isCompleted = (lessonId: number) => progress.some(p => p.lesson_id === lessonId && p.completed);
-  const getUserName = (id: number) => db.users.find(u => u.id === id)?.name || 'Unknown User';
+  
+  // Backend genelde user objesini review içinde dönmezse isim bulmak zor olabilir.
+  // Basitlik için backend'in review objesine 'student_name' eklediğini varsayıyoruz 
+  // veya varsayılan bir isim gösteriyoruz.
+  const getUserName = (review: any) => review.student_name || `User #${review.student_id}`;
+
+  if (loading) return <div className="flex h-screen items-center justify-center text-indigo-600"><Loader2 className="animate-spin mr-2"/> Kurs Detayları Yükleniyor...</div>;
+  if (!course) return <div className="p-8 text-center">Course not found</div>;
 
   // Role Checks
   const isInstructor = currentUser.role === UserRole.INSTRUCTOR;
@@ -103,7 +200,7 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
   const canAccessContent = isEnrolled || isCreator; 
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 animate-fade-in">
       <button onClick={onBack} className="text-indigo-600 hover:underline font-medium">&larr; Back to Dashboard</button>
       
       {/* Course Header with Enrollment Logic */}
@@ -117,7 +214,7 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
                 <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-sm font-bold">{lessons.length} Lessons</span>
                 <span className="px-3 py-1 bg-yellow-50 text-yellow-800 rounded-full text-sm font-bold flex items-center gap-1">
                     <Star size={14} fill="currentColor" className="text-yellow-500" /> 
-                    {avgRating > 0 ? avgRating : 'New'} <span className="text-yellow-600 font-normal">({reviews.length} reviews)</span>
+                    {avgRating} <span className="text-yellow-600 font-normal">({reviews.length} reviews)</span>
                 </span>
             </div>
             
@@ -221,7 +318,7 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
               <div className="flex items-center justify-between border-b pb-2">
                 <div className="flex items-center gap-2">
                     <h3 className="text-xl font-semibold text-slate-800">Reviews</h3>
-                    {avgRating > 0 && (
+                    {Number(avgRating) > 0 && (
                         <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded flex items-center gap-1">
                             <Star size={10} fill="currentColor" /> {avgRating}
                         </span>
@@ -291,9 +388,9 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
                               <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2">
                                       <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
-                                        {getUserName(r.student_id).charAt(0)}
+                                        {getUserName(r).charAt(0)}
                                       </div>
-                                      <span className="text-sm font-bold text-slate-800">{getUserName(r.student_id)}</span>
+                                      <span className="text-sm font-bold text-slate-800">{getUserName(r)}</span>
                                   </div>
                                   <div className="flex text-yellow-400">
                                       {Array.from({length: r.rating}).map((_, i) => <Star key={i} size={12} fill="currentColor" />)}

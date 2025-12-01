@@ -1,17 +1,33 @@
-
 import React, { useState, useEffect } from 'react';
-import { CourseRepository } from '../services/repositories/CourseRepository';
 import { Course, Lesson, LessonType, QuestionType, Quiz, Question } from '../types';
-import { QuestionFactory } from '../services/factories/QuestionFactory';
-import { Plus, Trash2, Save, ArrowLeft, FileText, Video, HelpCircle, Paperclip, ChevronDown, ChevronUp, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, FileText, HelpCircle, Paperclip, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface Props {
   courseId: number;
   onBack: () => void;
 }
 
+const API_URL = 'http://localhost:5000/api';
+
+// API İstekleri için Yardımcı Fonksiyon
+const authFetch = async (endpoint: string, options: RequestInit = {}) => {
+  const token = localStorage.getItem('token');
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': token ? `Bearer ${token}` : '',
+    ...options.headers,
+  };
+
+  const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'Bir hata oluştu');
+  }
+  return response.json();
+};
+
 export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) => {
-  const repo = new CourseRepository();
+  const [loading, setLoading] = useState(true);
   const [course, setCourse] = useState<Course | undefined>();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   
@@ -21,7 +37,7 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
   const [lTitle, setLTitle] = useState('');
   const [lContent, setLContent] = useState('');
   const [lType, setLType] = useState<LessonType>('article');
-  const [lAttachments, setLAttachments] = useState(''); // Comma separated
+  const [lAttachments, setLAttachments] = useState('');
 
   // Quiz Edit State
   const [currentQuiz, setCurrentQuiz] = useState<Quiz | undefined>(undefined);
@@ -35,148 +51,222 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
   const [editQCorrect, setEditQCorrect] = useState('');
   const [editQOptions, setEditQOptions] = useState<string[]>([]);
 
+  // 1. Kurs ve Dersleri Yükle
   useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadCourseData();
   }, [courseId]);
 
+  const loadCourseData = async () => {
+    try {
+      setLoading(true);
+      // Kurs Detayı
+      const courseData = await authFetch(`/courses/${courseId}`);
+      setCourse(courseData);
+
+      // Ders Listesi
+      const lessonsData = await authFetch(`/courses/${courseId}/lessons`);
+      setLessons(lessonsData);
+
+      // Eğer ders varsa ilkini seç
+      if (!selectedLessonId && lessonsData.length > 0) {
+        setSelectedLessonId(lessonsData[0].id);
+      }
+    } catch (error) {
+      console.error("Veri yüklenemedi:", error);
+      alert("Kurs bilgileri yüklenirken hata oluştu.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2. Seçili Ders Değiştiğinde Detayları ve Quiz'i Yükle
   useEffect(() => {
     if (selectedLessonId) {
-        // Need to refetch lessons to ensure we have latest data
         const l = lessons.find(x => x.id === selectedLessonId);
         if (l) {
             setLTitle(l.title);
             setLContent(l.content);
             setLType(l.type);
-            setLAttachments(l.attachment_urls.join(', '));
+            setLAttachments(l.attachment_urls ? l.attachment_urls.join(', ') : '');
             
-            const q = repo.getQuizByLessonId(l.id);
-            setCurrentQuiz(q);
-            if (q) {
-                setQuizTitle(q.title);
-                setQuestions(repo.getQuestionsByQuizId(q.id));
-            } else {
-                setQuizTitle('');
-                setQuestions([]);
-            }
-            // Reset edit state when switching lessons
+            // Quiz'i Çek
+            fetchQuizForLesson(l.id);
+            
             setEditingQuestionId(null);
-        } else {
-            // Lesson might have been deleted
-            setSelectedLessonId(null);
         }
+    } else {
+        // Ders seçili değilse alanları temizle
+        setLTitle(''); setLContent(''); setCurrentQuiz(undefined); setQuestions([]);
     }
   }, [selectedLessonId, lessons]);
 
-  const loadData = () => {
-    setCourse(repo.getById(courseId));
-    const allLessons = repo.getLessonsByCourseId(courseId);
-    setLessons(allLessons);
-    if (!selectedLessonId && allLessons.length > 0) {
-        setSelectedLessonId(allLessons[0].id);
-    }
-  };
-
-  const handleCreateLesson = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const newLesson = repo.createLesson({
-        course_id: courseId,
-        title: 'New Lesson',
-        content: '',
-        type: 'article',
-        order_index: lessons.length + 1,
-        attachment_urls: []
-    });
-    loadData();
-    setSelectedLessonId(newLesson.id);
-  };
-
-  const handleDeleteLesson = (e: React.MouseEvent, id: number) => {
-    e.preventDefault();
-    e.stopPropagation(); // Stop bubbling to the selection handler
-    if (confirm("Delete this lesson? This will remove any associated quizzes and progress.")) {
-        repo.deleteLesson(id);
+  const fetchQuizForLesson = async (lessonId: number) => {
+    try {
+        // Backend'de /lessons/:id/quiz endpoint'i olduğunu varsayıyoruz
+        // Eğer yoksa quizleri çekip filtrelememiz gerekebilir.
+        const quizData = await authFetch(`/lessons/${lessonId}/quiz`).catch(() => null);
         
-        // Critical: Refresh data from DB explicitly
-        loadData();
-        
-        if (selectedLessonId === id) {
-             setSelectedLessonId(null);
-             setCurrentQuiz(undefined);
-             setQuestions([]);
+        setCurrentQuiz(quizData || undefined);
+        if (quizData) {
+            setQuizTitle(quizData.title);
+            fetchQuestions(quizData.id);
+        } else {
+            setQuizTitle('');
+            setQuestions([]);
         }
+    } catch (error) {
+        console.error("Quiz yüklenemedi", error);
     }
   };
 
-  const handleSaveLesson = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!selectedLessonId) return;
-    repo.updateLesson(selectedLessonId, {
-        title: lTitle,
-        content: lContent,
-        type: lType,
-        attachment_urls: lAttachments.split(',').map(s => s.trim()).filter(Boolean)
-    });
-    alert("Lesson saved!");
-    // Refresh list in case title changed
-    loadData();
+  const fetchQuestions = async (quizId: number) => {
+      try {
+          const qData = await authFetch(`/quizzes/${quizId}/questions`);
+          setQuestions(qData);
+      } catch (error) {
+          console.error("Sorular yüklenemedi", error);
+      }
   };
 
-  const handleCreateQuiz = (e: React.MouseEvent) => {
+  // --- LESSON OPERATIONS ---
+
+  const handleCreateLesson = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!selectedLessonId) return;
-    const q = repo.createQuiz({
-        lesson_id: selectedLessonId,
-        title: `${lTitle} Quiz`,
-        passing_score: 70
-    });
-    setCurrentQuiz(q);
-    setQuizTitle(q.title);
+    try {
+        const newLesson = await authFetch(`/courses/${courseId}/lessons`, {
+            method: 'POST',
+            body: JSON.stringify({
+                title: 'New Lesson',
+                content: 'Content goes here...',
+                type: 'article',
+                order_index: lessons.length + 1,
+                attachment_urls: []
+            })
+        });
+        
+        // Listeyi güncelle ve yeni dersi seç
+        const updatedLessons = [...lessons, newLesson];
+        setLessons(updatedLessons);
+        setSelectedLessonId(newLesson.id);
+    } catch (error) {
+        alert("Ders oluşturulamadı.");
+    }
   };
 
-  const handleDeleteQuiz = (e: React.MouseEvent) => {
+  const handleDeleteLesson = async (e: React.MouseEvent, id: number) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!currentQuiz) return;
-    if (confirm("Delete assessment and all its questions?")) {
-        repo.deleteQuiz(currentQuiz.id);
+    if (!confirm("Bu dersi ve içindeki tüm içerikleri silmek istediğine emin misin?")) return;
+
+    try {
+        await authFetch(`/lessons/${id}`, { method: 'DELETE' });
         
-        // UI Update: Remove quiz from view immediately
-        setCurrentQuiz(undefined);
-        setQuestions([]);
-        setEditingQuestionId(null);
-        setQuizTitle('');
+        const remaining = lessons.filter(l => l.id !== id);
+        setLessons(remaining);
+        
+        if (selectedLessonId === id) {
+             setSelectedLessonId(remaining.length > 0 ? remaining[0].id : null);
+        }
+    } catch (error) {
+        alert("Silme işlemi başarısız.");
     }
   };
 
-  const handleAddQuestion = (e: React.MouseEvent) => {
+  const handleSaveLesson = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!currentQuiz) return;
-    const q = QuestionFactory.createDefault(QuestionType.MULTIPLE_CHOICE, currentQuiz.id);
-    repo.createQuestion(q);
-    
-    // Refresh questions
-    const updated = repo.getQuestionsByQuizId(currentQuiz.id);
-    setQuestions(updated);
-    
-    // Immediately select for editing
-    const newQ = updated[updated.length - 1];
-    startEditingQuestion(newQ);
+    if (!selectedLessonId) return;
+
+    try {
+        const updatedLesson = await authFetch(`/lessons/${selectedLessonId}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                title: lTitle,
+                content: lContent,
+                type: lType,
+                attachment_urls: lAttachments.split(',').map(s => s.trim()).filter(Boolean)
+            })
+        });
+
+        // State'i güncelle
+        setLessons(lessons.map(l => l.id === selectedLessonId ? updatedLesson : l));
+        alert("Ders kaydedildi!");
+    } catch (error) {
+        alert("Kaydetme başarısız.");
+    }
   };
 
-  const handleDeleteQuestion = (e: React.MouseEvent, qid: number) => {
+  // --- QUIZ OPERATIONS ---
+
+  const handleCreateQuiz = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!selectedLessonId) return;
+
+    try {
+        const newQuiz = await authFetch(`/lessons/${selectedLessonId}/quiz`, {
+            method: 'POST',
+            body: JSON.stringify({
+                title: `${lTitle} Assessment`,
+                passing_score: 70
+            })
+        });
+        setCurrentQuiz(newQuiz);
+        setQuizTitle(newQuiz.title);
+        setQuestions([]);
+    } catch (error) {
+        alert("Quiz oluşturulamadı. Backend loglarını kontrol et.");
+    }
+  };
+
+  const handleDeleteQuiz = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!currentQuiz || !confirm("Quiz ve tüm soruları silinecek. Emin misin?")) return;
+
+    try {
+        await authFetch(`/quizzes/${currentQuiz.id}`, { method: 'DELETE' });
+        setCurrentQuiz(undefined);
+        setQuestions([]);
+        setQuizTitle('');
+    } catch (error) {
+        alert("Quiz silinemedi.");
+    }
+  };
+
+  // --- QUESTION OPERATIONS ---
+
+  const handleAddQuestion = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!currentQuiz) return;
+
+    try {
+        const newQ = await authFetch(`/quizzes/${currentQuiz.id}/questions`, {
+            method: 'POST',
+            body: JSON.stringify({
+                text: 'Yeni Soru',
+                type: QuestionType.MULTIPLE_CHOICE,
+                correct_answer: 'Option A',
+                options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                points: 10
+            })
+        });
+        
+        setQuestions([...questions, newQ]);
+        startEditingQuestion(newQ);
+    } catch (error) {
+        alert("Soru eklenemedi.");
+    }
+  };
+
+  const handleDeleteQuestion = async (e: React.MouseEvent, qid: number) => {
       e.preventDefault();
       e.stopPropagation();
-      if(confirm("Delete this question?")) {
-        repo.deleteQuestion(qid);
-        
-        // UI Update: Fetch fresh questions from repo immediately
-        if (currentQuiz) {
-            const freshQuestions = repo.getQuestionsByQuizId(currentQuiz.id);
-            setQuestions(freshQuestions);
-        }
-        
+      if(!confirm("Soru silinsin mi?")) return;
+
+      try {
+        await authFetch(`/questions/${qid}`, { method: 'DELETE' });
+        setQuestions(questions.filter(q => q.id !== qid));
         if (editingQuestionId === qid) setEditingQuestionId(null);
+      } catch (error) {
+          alert("Soru silinemedi.");
       }
   };
 
@@ -185,29 +275,35 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
       setEditQText(q.text);
       setEditQType(q.type);
       setEditQCorrect(q.correct_answer);
-      // Ensure options is initialized for editing
       setEditQOptions(q.options || []);
   };
 
-  const handleSaveQuestion = (e: React.MouseEvent) => {
+  const handleSaveQuestion = async (e: React.MouseEvent) => {
       e.preventDefault();
       if (!editingQuestionId) return;
       
-      repo.updateQuestion(editingQuestionId, {
-          text: editQText,
-          type: editQType,
-          correct_answer: editQCorrect,
-          options: editQOptions
-      });
-      
-      setEditingQuestionId(null);
-      if (currentQuiz) setQuestions(repo.getQuestionsByQuizId(currentQuiz.id));
+      try {
+          const updatedQ = await authFetch(`/questions/${editingQuestionId}`, {
+              method: 'PUT',
+              body: JSON.stringify({
+                  text: editQText,
+                  type: editQType,
+                  correct_answer: editQCorrect,
+                  options: editQOptions
+              })
+          });
+
+          setQuestions(questions.map(q => q.id === editingQuestionId ? updatedQ : q));
+          setEditingQuestionId(null);
+      } catch (error) {
+          alert("Soru güncellenemedi.");
+      }
   };
 
-  // Helper to handle type switching (resets unrelated fields)
+  // --- UI HELPERS ---
+
   const handleTypeChange = (newType: QuestionType) => {
       setEditQType(newType);
-      
       if (newType === QuestionType.MULTIPLE_CHOICE) {
           setEditQOptions(['Option A', 'Option B', 'Option C', 'Option D']);
           setEditQCorrect('Option A');
@@ -215,12 +311,13 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
           setEditQOptions(['True', 'False']);
           setEditQCorrect('True');
       } else if (newType === QuestionType.SHORT_ANSWER) {
-          setEditQOptions([]); // Clear options for storage
+          setEditQOptions([]);
           setEditQCorrect('');
       }
   };
 
-  if (!course) return <div>Loading...</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /> Yükleniyor...</div>;
+  if (!course) return <div>Kurs bulunamadı.</div>;
 
   return (
     <div className="flex flex-col h-[calc(100vh-150px)]">

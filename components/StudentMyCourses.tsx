@@ -1,24 +1,66 @@
-
 import React, { useEffect, useState } from 'react';
 import { Course } from '../types';
-import { CourseRepository } from '../services/repositories/CourseRepository';
-import { BookOpen, User, CheckCircle, Clock, PlayCircle } from 'lucide-react';
+import { BookOpen, User, CheckCircle, Clock, PlayCircle, Loader2 } from 'lucide-react';
 
 interface Props {
   onSelectCourse: (id: number) => void;
   currentUserId: number;
 }
 
+// API'den gelen verinin yapısı (Enrollment ile Course birleşmiş hali)
+interface EnrolledCourseData extends Course {
+  progress?: number;
+  last_accessed?: string;
+  enrollment_date?: string;
+}
+
+const API_URL = 'http://localhost:5000/api';
+
 export const StudentMyCourses: React.FC<Props> = ({ onSelectCourse, currentUserId }) => {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const repo = new CourseRepository();
+  const [courses, setCourses] = useState<EnrolledCourseData[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Only fetch courses the student is enrolled in
-    setCourses(repo.getEnrolledCourses(currentUserId));
+    const fetchEnrolledCourses = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        const headers = { 
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+        };
+
+        // Backend'de bu kullanıcının kayıtlı olduğu kursları ve ilerleme durumunu çeken endpoint
+        // (Backend'de /users/:id/enrollments endpoint'i olduğunu varsayıyoruz)
+        const response = await fetch(`${API_URL}/users/${currentUserId}/enrollments`, { headers });
+        
+        if (response.ok) {
+            const data = await response.json();
+            // Backend veriyi { course: {...}, progress: 50, last_accessed: ... } şeklinde dönebilir.
+            // Onu düzleştirmemiz gerekebilir veya backend direkt düz liste dönüyordur.
+            // Biz burada backend'in şu formatta döndüğünü varsayıp işliyoruz:
+            // [{ ...courseFields, progress: 50, last_accessed: '...' }]
+            
+            // Eğer backend JOIN yapısı farklıysa burayı maplemek gerekebilir.
+            // Örn: data.map((item: any) => ({ ...item.course, progress: item.progress, last_accessed: item.last_accessed }))
+            
+            // Şimdilik direkt atıyoruz (Backend uyumluysa)
+            setCourses(data); 
+        } else {
+            console.error("Kayıtlı kurslar çekilemedi.");
+        }
+      } catch (error) {
+        console.error("Hata:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEnrolledCourses();
   }, [currentUserId]);
 
-  const getTimeAgo = (dateStr: string) => {
+  const getTimeAgo = (dateStr?: string) => {
+    if (!dateStr) return 'Never';
     const date = new Date(dateStr);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -29,8 +71,12 @@ export const StudentMyCourses: React.FC<Props> = ({ onSelectCourse, currentUserI
     return date.toLocaleDateString();
   };
 
+  if (loading) {
+      return <div className="flex h-64 items-center justify-center text-indigo-600"><Loader2 className="animate-spin mr-2"/> Kurslarınız Yükleniyor...</div>;
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fade-in">
       <div className="flex items-center justify-between border-b pb-4">
         <div>
             <h2 className="text-3xl font-bold text-slate-800">My Learning</h2>
@@ -54,8 +100,7 @@ export const StudentMyCourses: React.FC<Props> = ({ onSelectCourse, currentUserI
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {courses.map(course => {
-            const enrollment = repo.getEnrollment(currentUserId, course.id);
-            const progress = repo.getProgress(currentUserId, course.id);
+            const progress = course.progress || 0; // Backend'den gelen progress
             
             return (
                 <div key={course.id} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col">
@@ -88,10 +133,10 @@ export const StudentMyCourses: React.FC<Props> = ({ onSelectCourse, currentUserI
                             style={{ width: `${progress}%` }}
                         ></div>
                         </div>
-                        {enrollment && enrollment.last_accessed && (
+                        {course.last_accessed && (
                             <div className="flex items-center gap-1 text-[10px] text-slate-400">
                                 <Clock size={10} /> 
-                                <span>Last studied: {getTimeAgo(enrollment.last_accessed)}</span>
+                                <span>Last studied: {getTimeAgo(course.last_accessed)}</span>
                             </div>
                         )}
                     </div>

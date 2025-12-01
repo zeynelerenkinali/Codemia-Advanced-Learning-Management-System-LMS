@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { User } from '../types';
 import { UserRepository } from '../services/repositories/UserRepository';
-import { CheckCircle, Briefcase, Award } from 'lucide-react';
+import { CheckCircle, Briefcase, Award, Loader2 } from 'lucide-react';
 
 interface Props {
   currentUser: User;
@@ -13,26 +12,30 @@ export const BecomeInstructor: React.FC<Props> = ({ currentUser, onSuccess }) =>
   const [bio, setBio] = useState('');
   const [expertise, setExpertise] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const repo = new UserRepository();
+  
+  // NOT: UserRepository artık static bir obje olduğu için 'new' keyword'ü kullanmıyoruz.
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate API delay
-    await new Promise(r => setTimeout(r, 1000));
+    // Yapay gecikmeyi (setTimeout) kaldırdık. Gerçek ağ isteği yapacağız.
     
     try {
-        const updatedUser = repo.becomeInstructor(currentUser.id, bio, expertise);
+        // Backend'e istek atıyoruz (Asenkron)
+        const updatedUser = await UserRepository.becomeInstructor(currentUser.id, bio, expertise);
+        
+        // İşlem başarılıysa üst bileşeni bilgilendir
         onSuccess(updatedUser);
-    } catch (error) {
-        alert("Failed to register as instructor");
+    } catch (error: any) {
+        console.error("Eğitmen olma hatası:", error);
+        alert(error.message || "Eğitmen kaydı yapılamadı. Lütfen tekrar deneyin.");
         setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto animate-fade-in">
       <h2 className="text-3xl font-bold text-slate-800 mb-6">Become an Instructor</h2>
       
       <div className="bg-white p-8 rounded-xl shadow-lg border border-slate-200 relative overflow-hidden">
@@ -83,7 +86,11 @@ export const BecomeInstructor: React.FC<Props> = ({ currentUser, onSuccess }) =>
                 disabled={isSubmitting}
                 className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2"
             >
-                {isSubmitting ? 'Processing...' : (
+                {isSubmitting ? (
+                    <>
+                       <Loader2 className="animate-spin" size={20} /> Processing...
+                    </>
+                ) : (
                     <>
                         Complete Registration <CheckCircle size={18} />
                     </>

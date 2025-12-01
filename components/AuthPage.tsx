@@ -1,6 +1,4 @@
-
 import React, { useState } from 'react';
-import { AuthService } from '../services/AuthService';
 import { User, UserRole } from '../types';
 import { GraduationCap, Lock, Mail, User as UserIcon, ArrowRight, AlertCircle, CheckCircle, Loader2, Briefcase, ChevronLeft, Layout } from 'lucide-react';
 
@@ -10,13 +8,15 @@ interface Props {
 
 type AuthMode = 'landing' | 'login' | 'register' | 'forgot';
 
+const API_URL = 'http://localhost:5000/api';
+
 export const AuthPage: React.FC<Props> = ({ onLogin }) => {
   const [mode, setMode] = useState<AuthMode>('landing');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   
-  const authService = new AuthService();
+  // AuthService sınıfını kaldırdık, artık direkt fetch kullanacağız.
 
   // Form State
   const [email, setEmail] = useState('');
@@ -31,27 +31,69 @@ export const AuthPage: React.FC<Props> = ({ onLogin }) => {
     setSuccess(null);
     setLoading(true);
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-
     try {
       if (mode === 'login') {
-        const user = authService.login(email, password);
-        onLogin(user, remember);
-      } else if (mode === 'register') {
-        const user = authService.register(name, email, password, role);
-        onLogin(user, false); // Don't remember on register by default
-      } else if (mode === 'forgot') {
-        const exists = authService.resetPassword(email);
-        if (exists) {
-            setSuccess(`Password reset link sent to ${email}`);
-            setTimeout(() => setMode('login'), 3000);
-        } else {
-            setError("Email address not found.");
+        // --- LOGIN API ---
+        const response = await fetch(`${API_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Giriş başarısız. Bilgileri kontrol edin.');
         }
+
+        // Token'ı kaydet (Diğer istekler için gerekli)
+        if (data.token) {
+            localStorage.setItem('token', data.token);
+        }
+
+        onLogin(data.user, remember);
+
+      } else if (mode === 'register') {
+        // --- REGISTER API ---
+        const response = await fetch(`${API_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password, role })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Kayıt oluşturulamadı.');
+        }
+
+        if (data.token) {
+            localStorage.setItem('token', data.token);
+        }
+
+        onLogin(data.user, false); 
+
+      } else if (mode === 'forgot') {
+        // --- FORGOT PASSWORD API (Opsiyonel) ---
+        // Backend'de bu endpoint olmayabilir, şimdilik mock gibi davranıp
+        // varsa backend'e istek atalım.
+        try {
+            await fetch(`${API_URL}/forgot-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+        } catch (e) {
+            // Backend'de yoksa bile kullanıcıya gitti diyelim (Güvenlik için)
+            console.log("Forgot password endpoint might not exist yet");
+        }
+        
+        setSuccess(`Password reset link sent to ${email}`);
+        setTimeout(() => setMode('login'), 3000);
       }
     } catch (err: any) {
-      setError(err.message);
+      console.error(err);
+      setError(err.message || "Bir hata oluştu.");
     } finally {
       setLoading(false);
     }

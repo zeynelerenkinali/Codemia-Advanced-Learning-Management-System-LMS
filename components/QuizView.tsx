@@ -1,18 +1,19 @@
-
-import React, { useState } from 'react';
-import { Database } from '../services/Database';
+import React, { useState, useEffect } from 'react';
 import { ScoringStrategy, StandardScoring, StrictScoring } from '../services/strategies/ScoringStrategy';
-import { Question, QuestionType } from '../types';
+import { Question, QuestionType, Quiz } from '../types';
+import { Loader2 } from 'lucide-react';
 
 interface Props {
   quizId: number;
   onBack: () => void;
 }
 
+const API_URL = 'http://localhost:5000/api';
+
 export const QuizView: React.FC<Props> = ({ quizId, onBack }) => {
-  const db = Database.getInstance();
-  const quiz = db.quizzes.find(q => q.id === quizId);
-  const questions = db.questions.filter(q => q.quiz_id === quizId);
+  const [loading, setLoading] = useState(true);
+  const [quiz, setQuiz] = useState<Quiz | undefined>(undefined);
+  const [questions, setQuestions] = useState<Question[]>([]);
   
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -22,28 +23,75 @@ export const QuizView: React.FC<Props> = ({ quizId, onBack }) => {
   const [strategyName, setStrategyName] = useState<'standard' | 'strict'>('standard');
   const getStrategy = (): ScoringStrategy => strategyName === 'standard' ? new StandardScoring() : new StrictScoring();
 
-  if (!quiz) return <div>Quiz not found</div>;
+  // Verileri Backend'den Çek
+  useEffect(() => {
+    const loadQuizData = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        const headers = { 
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+        };
+
+        // 1. Quiz Detayını Çek
+        const quizRes = await fetch(`${API_URL}/quizzes/${quizId}`, { headers });
+        if (!quizRes.ok) throw new Error("Quiz bulunamadı");
+        const quizData = await quizRes.json();
+        setQuiz(quizData);
+
+        // 2. Soruları Çek
+        const qRes = await fetch(`${API_URL}/quizzes/${quizId}/questions`, { headers });
+        if (!qRes.ok) throw new Error("Sorular yüklenemedi");
+        const qData = await qRes.json();
+        setQuestions(qData);
+
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadQuizData();
+  }, [quizId]);
 
   const handleSubmit = () => {
+    // Strategy Pattern: Puanlama mantığı seçilen strateji sınıfına devredilir.
     const strategy = getStrategy();
     const calculatedScore = strategy.calculateScore(questions, answers);
     setScore(calculatedScore);
     setSubmitted(true);
   };
 
-  // Helper to determine if a specific question was answered correctly (for UI coloring)
+  // UI Yardımcısı: Cevabın doğru olup olmadığını kontrol eder (renklendirme için)
   const isCorrect = (q: Question) => {
       const userAns = (answers[q.id] || '').trim().toLowerCase();
       const correctAns = q.correct_answer.trim().toLowerCase();
-      // Check exact match or lookup table variations (stored in options for Short Answer)
-      const variations = (q.options || []).map(o => o.trim().toLowerCase());
+      
+      // Short Answer için varyasyon kontrolü (backend'den array gelmeli veya string split yapılmalı)
+      let variations: string[] = [];
+      if (Array.isArray(q.options)) {
+          variations = q.options.map(o => o.trim().toLowerCase());
+      }
+
       return userAns === correctAns || variations.includes(userAns);
   };
 
   const maxScore = questions.reduce((acc, q) => acc + q.points, 0);
 
+  if (loading) {
+    return (
+        <div className="flex h-64 items-center justify-center text-indigo-600">
+            <Loader2 className="animate-spin mr-2" /> Quiz Yükleniyor...
+        </div>
+    );
+  }
+
+  if (!quiz) return <div className="text-center p-10 text-red-500">Quiz bulunamadı veya silinmiş.</div>;
+
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto animate-fade-in">
        <button onClick={onBack} className="text-indigo-600 hover:underline mb-4 block">&larr; Back to Lesson</button>
 
       <div className="bg-white p-8 rounded-xl shadow-lg border border-slate-200">
