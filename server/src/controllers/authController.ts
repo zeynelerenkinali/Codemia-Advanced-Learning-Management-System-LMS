@@ -1,10 +1,9 @@
-
 import { db } from '../db';
 
 export const login = async (req: any, res: any) => {
   const { email, password } = req.body;
   try {
-    // Note: In a real production app, compare hashed passwords using bcrypt
+    // Not: Gerçek bir uygulamada şifreleri bcrypt ile hashleyerek karşılaştırın.
     const query = `
       SELECT u.*, 
              CASE 
@@ -25,11 +24,17 @@ export const login = async (req: any, res: any) => {
     }
 
     const user = result.rows[0];
-    // Rename user_id to id for frontend compatibility
+    // Frontend uyumluluğu için user_id'yi id olarak değiştiriyoruz
     user.id = user.user_id;
     delete user.user_id;
     
-    res.json(user);
+    // DÜZELTME: Veriyi { token, user } yapısında gönderiyoruz.
+    // Şimdilik token dummy (sahte) olarak oluşturuluyor.
+    res.json({
+      token: 'mock-jwt-token-12345', 
+      user: user
+    });
+
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -43,7 +48,7 @@ export const register = async (req: any, res: any) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Insert into Superclass (Users)
+    // 1. Üst sınıfa (Users) ekle
     const userQuery = `
       INSERT INTO users (name, email, password_hash, role, country, city, postal_code) 
       VALUES ($1, $2, $3, $4, $5, $6, $7) 
@@ -52,7 +57,7 @@ export const register = async (req: any, res: any) => {
     const userResult = await client.query(userQuery, [name, email, password, role, country, city, postal_code]);
     const newUser = userResult.rows[0];
 
-    // 2. Insert into Subclass
+    // 2. Alt sınıfa ekle (Rol tablosu)
     if (role === 'student') {
       await client.query('INSERT INTO students (user_id) VALUES ($1)', [newUser.user_id]);
     } else if (role === 'instructor') {
@@ -66,7 +71,13 @@ export const register = async (req: any, res: any) => {
     newUser.id = newUser.user_id;
     delete newUser.user_id;
     
-    res.status(201).json(newUser);
+    // DÜZELTME: Kayıttan sonra da { token, user } yapısında yanıt dönüyoruz
+    // böylece frontend otomatik giriş yapabilir.
+    res.status(201).json({
+      token: 'mock-jwt-token-12345',
+      user: newUser
+    });
+
   } catch (err: any) {
     await client.query('ROLLBACK');
     console.error(err);
