@@ -130,8 +130,17 @@ export class Database {
         this.enrollments.push({
             student_id: studentId,
             course_id: courseId,
-            enrolled_at: new Date().toISOString()
+            enrolled_at: new Date().toISOString(),
+            last_accessed: new Date().toISOString()
         });
+    }
+  }
+
+  // Update Enrollment Last Accessed
+  public updateEnrollmentAccess(studentId: number, courseId: number) {
+    const enroll = this.enrollments.find(e => e.student_id === studentId && e.course_id === courseId);
+    if (enroll) {
+        enroll.last_accessed = new Date().toISOString();
     }
   }
 

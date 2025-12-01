@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect } from 'react';
 import { Course, Lesson, LessonProgress, Review, User, UserRole } from '../types';
 import { CourseRepository } from '../services/repositories/CourseRepository';
@@ -39,16 +41,19 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
         const inst = db.users.find(u => u.id === c.instructor_id);
         setInstructorName(inst ? inst.name : 'Unknown');
         
-        // Calculate Progress
+        // Calculate Progress & Check Enrollment
         if (repo.isEnrolled(currentUser.id, courseId)) {
+            setIsEnrolled(true);
             setProgressPercent(repo.getProgress(currentUser.id, courseId));
+            // Update Last Accessed Timestamp
+            repo.markCourseAsAccessed(currentUser.id, courseId);
         } else {
+            setIsEnrolled(false);
             setProgressPercent(0);
         }
     }
     setLessons(repo.getLessonsByCourseId(courseId));
     setProgress(db.progress.filter(p => p.student_id === currentUser.id));
-    setIsEnrolled(repo.isEnrolled(currentUser.id, courseId));
     
     // Reviews & Rating
     setReviews(repo.getReviews(courseId));

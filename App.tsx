@@ -1,8 +1,12 @@
+
+
+
 import React, { useState, useEffect } from 'react';
 import { ViewState, User, UserRole } from './types';
-// Database importu kaldırıldı
+import { Database } from './services/Database';
 import { AuthPage } from './components/AuthPage';
 import { CourseList } from './components/CourseList';
+import { StudentMyCourses } from './components/StudentMyCourses';
 import { CourseDetail } from './components/CourseDetail';
 import { LessonView } from './components/LessonView';
 import { QuizView } from './components/QuizView';
@@ -12,43 +16,42 @@ import { BecomeInstructor } from './components/BecomeInstructor';
 import { ProfileSettings } from './components/ProfileSettings';
 import { SQLViewer } from './components/SQLViewer';
 import { PatternsInfo } from './components/PatternsInfo';
-import { GraduationCap, Database as DbIcon, Code, Settings, BookOpen, LogOut, PenTool, UserPlus } from 'lucide-react';
+import { GraduationCap, Database as DbIcon, Code, Settings, BookOpen, Loader2, LogOut, PenTool, UserPlus, User as UserIcon, Library } from 'lucide-react';
 
 export default function App() {
-  const [loading, setLoading] = useState(true); // Splash yerine genel loading
+  const [showSplash, setShowSplash] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   const [view, setView] = useState<ViewState>('home');
-  
-  // DİKKAT: UUID kullandığımız için ID state'leri artık string!
-  const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
-  const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
-  const [activeQuizId, setActiveQuizId] = useState<string | null>(null);
+  const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
+  const [activeLessonId, setActiveLessonId] = useState<number | null>(null);
+  const [activeQuizId, setActiveQuizId] = useState<number | null>(null);
   
   useEffect(() => {
-    // Sayfa yüklendiğinde LocalStorage kontrolü
-    const token = localStorage.getItem('token');
-    const savedUserStr = localStorage.getItem('codemia_user');
-
-    if (token && savedUserStr) {
-      try {
-        const user = JSON.parse(savedUserStr);
-        handleLoginSuccess(user, false); // State'i güncelle
-      } catch (error) {
-        // Veri bozuksa temizle
-        localStorage.removeItem('token');
-        localStorage.removeItem('codemia_user');
+    // 1. Simulate initialization time for the Singleton Database
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+      
+      // 2. Check for "Remember Me" session
+      const savedUserId = localStorage.getItem('codemia_user_id');
+      if (savedUserId) {
+        const db = Database.getInstance();
+        const user = db.users.find(u => u.id === parseInt(savedUserId));
+        if (user) {
+          handleLoginSuccess(user, false);
+        }
       }
-    }
-    setLoading(false);
+    }, 2500);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleLoginSuccess = (user: User, remember: boolean) => {
     setCurrentUser(user);
-    
-    // Kullanıcıyı ve Token'ı sakla (AuthPage zaten token'ı kaydediyor ama user'ı burada tutuyoruz)
-    // Not: Güvenlik için hassas verileri localStorage'a atmamak gerekir ama bu demo için user objesini tutuyoruz.
-    localStorage.setItem('codemia_user', JSON.stringify(user));
+    if (remember) {
+      localStorage.setItem('codemia_user_id', user.id.toString());
+    } else {
+      localStorage.removeItem('codemia_user_id');
+    }
 
     // Role-based redirection logic
     if (user.role === UserRole.INSTRUCTOR) {
@@ -62,8 +65,7 @@ export default function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('codemia_user');
+    localStorage.removeItem('codemia_user_id');
     setView('home'); 
   };
 
@@ -74,13 +76,27 @@ export default function App() {
     setActiveQuizId(null);
   };
 
-  // Yükleniyor ekranı (Token kontrol edilirken beyaz ekran kalmasın)
-  if (loading) {
+  if (showSplash) {
     return (
-      <div className="fixed inset-0 bg-slate-900 flex items-center justify-center text-white">
+      <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center text-white">
         <div className="flex flex-col items-center">
-            <GraduationCap className="animate-bounce mb-4 text-indigo-500" size={48} />
-            <p className="text-slate-400">Loading Codemia...</p>
+          <div className="w-24 h-24 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-2xl shadow-indigo-500/30">
+            <GraduationCap size={48} className="text-white" />
+          </div>
+          <h1 className="text-5xl font-extrabold tracking-tighter mb-2 bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+            Codemia
+          </h1>
+          <p className="text-slate-400 text-lg mb-8 font-light tracking-wide">
+            E-Learning Platform
+          </p>
+          
+          <div className="flex flex-col items-center gap-3">
+             <div className="flex items-center gap-2 text-indigo-400 bg-slate-900/50 px-4 py-2 rounded-full border border-slate-800">
+              <Loader2 className="animate-spin w-4 h-4" />
+              <span className="text-xs font-mono tracking-wider">INITIALIZING DB SINGLETON...</span>
+            </div>
+            <p className="text-xs text-slate-600 mt-2">DBMS Term Project Demo</p>
+          </div>
         </div>
       </div>
     );
@@ -105,13 +121,26 @@ export default function App() {
         <nav className="p-4 space-y-2 flex-1">
           {/* HIDE COURSES LINK FOR INSTRUCTORS */}
           {currentUser.role !== UserRole.INSTRUCTOR && (
-            <button 
-              onClick={() => handleNav('home')} 
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === 'home' || view === 'courses' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'hover:bg-slate-800'}`}
-            >
-              <BookOpen size={20} />
-              <span className="font-medium">Courses</span>
-            </button>
+            <>
+              <button 
+                onClick={() => handleNav('home')} 
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === 'home' || view === 'courses' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'hover:bg-slate-800'}`}
+              >
+                <BookOpen size={20} />
+                <span className="font-medium">Browse All</span>
+              </button>
+
+              {/* Student "My Courses" Link */}
+              {currentUser.role === UserRole.STUDENT && (
+                <button 
+                  onClick={() => handleNav('student_courses')} 
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${view === 'student_courses' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800'}`}
+                >
+                  <Library size={20} />
+                  <span className="font-medium">My Courses</span>
+                </button>
+              )}
+            </>
           )}
 
           {/* Role Based Navigation */}
@@ -194,7 +223,8 @@ export default function App() {
       <main className="flex-1 overflow-y-auto h-screen">
         <header className="bg-white border-b border-slate-200 sticky top-0 z-10 px-8 py-4 flex justify-between items-center shadow-sm">
             <h2 className="text-xl font-semibold text-slate-800">
-                {view === 'home' && 'All Courses'}
+                {view === 'home' && 'All Courses Catalog'}
+                {view === 'student_courses' && 'My Learning Dashboard'}
                 {view === 'admin' && 'Administration'}
                 {view === 'instructor_panel' && 'Instructor Dashboard'}
                 {(view as any) === 'become_instructor' && 'Join Our Faculty'}
@@ -216,11 +246,26 @@ export default function App() {
              />
           )}
 
+          {view === 'student_courses' && (
+              <StudentMyCourses 
+                  currentUserId={currentUser.id}
+                  onSelectCourse={(id) => {
+                      setActiveCourseId(id);
+                      setView('course_detail');
+                  }}
+              />
+          )}
+
           {view === 'course_detail' && activeCourseId && (
             <CourseDetail 
               courseId={activeCourseId} 
               currentUser={currentUser}
-              onBack={() => currentUser.role === UserRole.INSTRUCTOR ? setView('instructor_panel') : setView('home')}
+              onBack={() => {
+                // Return to appropriate previous screen
+                if (currentUser.role === UserRole.INSTRUCTOR) setView('instructor_panel');
+                else if (view === 'student_courses' || (view as any) === 'course_detail') setView('student_courses'); // Fallback logic often needs fine tuning in non-stack routers, but this is safe
+                else setView('home');
+              }}
               onSelectLesson={(id) => {
                 setActiveLessonId(id);
                 setView('lesson');

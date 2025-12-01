@@ -1,7 +1,9 @@
 
 
+
+
 import { Database } from '../Database';
-import { Course, Lesson, Review, Quiz, Question } from '../../types';
+import { Course, Lesson, Review, Quiz, Question, Enrollment } from '../../types';
 
 /**
  * PATTERN 2: REPOSITORY
@@ -21,6 +23,12 @@ export class CourseRepository {
 
   getByInstructor(instructorId: number): Course[] {
     return this.db.courses.filter(c => c.instructor_id === instructorId);
+  }
+
+  getEnrolledCourses(studentId: number): Course[] {
+    const enrollments = this.db.enrollments.filter(e => e.student_id === studentId);
+    const courseIds = enrollments.map(e => e.course_id);
+    return this.db.courses.filter(c => courseIds.includes(c.id));
   }
 
   getLessonsByCourseId(courseId: number): Lesson[] {
@@ -92,6 +100,14 @@ export class CourseRepository {
 
   enroll(studentId: number, courseId: number): void {
     this.db.enrollStudent(studentId, courseId);
+  }
+
+  markCourseAsAccessed(studentId: number, courseId: number): void {
+      this.db.updateEnrollmentAccess(studentId, courseId);
+  }
+
+  getEnrollment(studentId: number, courseId: number): Enrollment | undefined {
+      return this.db.enrollments.find(e => e.student_id === studentId && e.course_id === courseId);
   }
 
   // Progress Logic

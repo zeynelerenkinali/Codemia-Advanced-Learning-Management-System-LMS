@@ -1,5 +1,6 @@
 
 
+
 export const APP_NAME = "Codemia";
 
 export const SQL_SCHEMA = `
@@ -56,6 +57,7 @@ CREATE TABLE enrollments (
     student_id INT REFERENCES students(user_id) ON DELETE CASCADE,
     course_id INT REFERENCES courses(course_id) ON DELETE CASCADE,
     enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Tracks when student last viewed course
     status VARCHAR(20) DEFAULT 'active',
     PRIMARY KEY (student_id, course_id)
 );

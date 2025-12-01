@@ -1,9 +1,10 @@
 
 
+
 import React, { useEffect, useState } from 'react';
 import { Course } from '../types';
 import { CourseRepository } from '../services/repositories/CourseRepository';
-import { BookOpen, User, Tag, CheckCircle, Star } from 'lucide-react';
+import { BookOpen, User, Tag, CheckCircle, Star, Clock } from 'lucide-react';
 
 interface Props {
   onSelectCourse: (id: number) => void;
@@ -18,12 +19,24 @@ export const CourseList: React.FC<Props> = ({ onSelectCourse, currentUserId }) =
     setCourses(repo.getAll());
   }, []);
 
+  const getTimeAgo = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} mins ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    return date.toLocaleDateString();
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="text-3xl font-bold text-slate-800 border-b pb-4">Available Courses</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {courses.map(course => {
           const isEnrolled = repo.isEnrolled(currentUserId, course.id);
+          const enrollment = isEnrolled ? repo.getEnrollment(currentUserId, course.id) : undefined;
           const progress = isEnrolled ? repo.getProgress(currentUserId, course.id) : 0;
           const avgRating = repo.getAverageRating(course.id);
           const reviewCount = repo.getReviews(course.id).length;
@@ -73,12 +86,18 @@ export const CourseList: React.FC<Props> = ({ onSelectCourse, currentUserId }) =
                       <span>Progress</span>
                       <span>{progress === 100 ? 'Completed' : `${progress}%`}</span>
                     </div>
-                    <div className="w-full bg-slate-200 rounded-full h-2">
+                    <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
                       <div 
                         className="bg-green-500 h-2 rounded-full transition-all duration-500" 
                         style={{ width: `${progress}%` }}
                       ></div>
                     </div>
+                    {enrollment && enrollment.last_accessed && (
+                        <div className="flex items-center justify-end gap-1 text-[10px] text-slate-400">
+                            <Clock size={10} /> 
+                            <span>Last studied: {getTimeAgo(enrollment.last_accessed)}</span>
+                        </div>
+                    )}
                   </div>
                 )}
 
