@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useState, useEffect } from 'react';
 import { ViewState, User, UserRole } from './types';
 import { Database } from './services/Database';
@@ -67,6 +69,13 @@ export default function App() {
     setCurrentUser(null);
     localStorage.removeItem('codemia_user_id');
     setView('home'); 
+  };
+
+  const handleDeleteAccount = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('codemia_user_id');
+    setView('home');
+    alert("Your account has been deleted.");
   };
 
   const handleNav = (v: ViewState) => {
@@ -317,6 +326,7 @@ export default function App() {
             <ProfileSettings 
                 currentUser={currentUser}
                 onUpdate={setCurrentUser}
+                onDeleteAccount={handleDeleteAccount}
             />
           )}
 

@@ -179,6 +179,28 @@ export class Database {
     }
   }
 
+  public deleteUser(id: number): void {
+      // 1. INSTRUCTOR CASCADING: Delete courses owned by this user
+      // We first identify the IDs to avoid mutating the array while iterating
+      const courseIds = this.courses.filter(c => c.instructor_id === id).map(c => c.id);
+      courseIds.forEach(cid => this.deleteCourse(cid));
+
+      // Remove from Instructor Profiles
+      this.instructorProfiles = this.instructorProfiles.filter(p => p.user_id !== id);
+
+      // 2. STUDENT CASCADING
+      // Remove Enrollments
+      this.enrollments = this.enrollments.filter(e => e.student_id !== id);
+      // Remove Progress
+      this.progress = this.progress.filter(p => p.student_id !== id);
+      // Remove Reviews
+      this.reviews = this.reviews.filter(r => r.student_id !== id);
+
+      // 3. USER DELETION
+      this.users = this.users.filter(u => u.id !== id);
+      console.log(`[Database] Deleted User Account ${id}`);
+  }
+
   // Update Course
   public updateCourse(id: number, updates: Partial<Course>): Course {
     const idx = this.courses.findIndex(c => c.id === id);

@@ -1,5 +1,6 @@
 
 
+
 import { Database } from '../Database';
 import { User, InstructorProfile, UserRole } from '../../types';
 
@@ -28,5 +29,9 @@ export class UserRepository {
 
   updateInstructorSpecifics(userId: number, bio: string, expertise: string): void {
       this.db.updateInstructorProfile(userId, bio, expertise);
+  }
+
+  deleteAccount(userId: number): void {
+      this.db.deleteUser(userId);
   }
 }

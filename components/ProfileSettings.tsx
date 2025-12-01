@@ -1,15 +1,18 @@
 
+
+
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, InstructorProfile } from '../types';
 import { UserRepository } from '../services/repositories/UserRepository';
-import { Save, User as UserIcon, MapPin, Lock, Briefcase, CheckCircle } from 'lucide-react';
+import { Save, User as UserIcon, MapPin, Lock, Briefcase, CheckCircle, AlertTriangle, Trash2 } from 'lucide-react';
 
 interface Props {
   currentUser: User;
   onUpdate: (user: User) => void;
+  onDeleteAccount?: () => void;
 }
 
-export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate }) => {
+export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDeleteAccount }) => {
   const repo = new UserRepository();
   
   // General State
@@ -65,8 +68,19 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate }) => {
     }
   };
 
+  const handleDelete = () => {
+      if (confirm("Are you absolutely sure you want to delete your account? This action cannot be undone. All your data, enrollments, and reviews will be permanently removed.")) {
+          try {
+              repo.deleteAccount(currentUser.id);
+              if (onDeleteAccount) onDeleteAccount();
+          } catch (e) {
+              alert("Error deleting account.");
+          }
+      }
+  };
+
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto space-y-8 pb-12">
       <h2 className="text-3xl font-bold text-slate-800">Account Settings</h2>
 
       {message && (
@@ -206,6 +220,30 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate }) => {
               </button>
           </div>
       </form>
+
+      {/* DANGER ZONE */}
+      <div className="mt-12 border border-red-200 rounded-xl overflow-hidden">
+          <div className="bg-red-50 px-6 py-4 border-b border-red-200">
+              <h3 className="text-lg font-bold text-red-800 flex items-center gap-2">
+                  <AlertTriangle size={20} /> Danger Zone
+              </h3>
+          </div>
+          <div className="p-6 bg-white flex flex-col md:flex-row items-center justify-between gap-4">
+              <div>
+                  <h4 className="font-bold text-slate-700">Delete Account</h4>
+                  <p className="text-sm text-slate-500 mt-1">
+                      Permanently delete your account and all associated data. This action cannot be undone.
+                  </p>
+              </div>
+              <button 
+                type="button"
+                onClick={handleDelete}
+                className="bg-white border border-red-300 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-2"
+              >
+                  <Trash2 size={16} /> Delete Account
+              </button>
+          </div>
+      </div>
     </div>
   );
 };
