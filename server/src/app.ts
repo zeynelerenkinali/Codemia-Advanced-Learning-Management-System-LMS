@@ -10,6 +10,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const API_URL = 'http://localhost:5000/api';
 
 // Middleware
 app.use(cors());
@@ -21,9 +22,9 @@ app.use(express.json());
 app.use('/api', authRoutes); 
 
 // Diğerleri aynen kalabilir, çünkü onlar muhtemelen /api/courses/1 gibi çalışıyor.
-app.use('/api/courses', courseRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/lessons', lessonRoutes);
+app.use(`${API_URL}/courses`, courseRoutes);
+app.use(`${API_URL}/users`, userRoutes);
+app.use(`${API_URL}/lessons`, lessonRoutes);
 
 // Health Check
 app.get('/', (req, res) => {
