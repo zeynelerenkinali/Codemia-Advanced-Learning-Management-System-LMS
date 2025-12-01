@@ -1,13 +1,6 @@
-
-
-
-
-
-
-
 import React, { useState, useEffect } from 'react';
 import { ViewState, User, UserRole } from './types';
-import { Database } from './services/Database';
+// import { Database } satırı silindi, çünkü artık Backend kullanıyoruz.
 import { AuthPage } from './components/AuthPage';
 import { CourseList } from './components/CourseList';
 import { StudentMyCourses } from './components/StudentMyCourses';
@@ -32,19 +25,15 @@ export default function App() {
   const [activeQuizId, setActiveQuizId] = useState<number | null>(null);
   
   useEffect(() => {
-    // 1. Simulate initialization time for the Singleton Database
     const timer = setTimeout(() => {
       setShowSplash(false);
       
-      // 2. Check for "Remember Me" session
-      const savedUserId = localStorage.getItem('codemia_user_id');
-      if (savedUserId) {
-        const db = Database.getInstance();
-        const user = db.users.find(u => u.id === parseInt(savedUserId));
-        if (user) {
-          handleLoginSuccess(user, false);
-        }
-      }
+      // --- ESKİ MOCK DB KODLARI TEMİZLENDİ ---
+      // Artık veritabanını backend yönetiyor.
+      // Uygulama açılışta çökmesin diye kullanıcı oturumunu temizleyip
+      // Login ekranına yönlendiriyoruz.
+      localStorage.removeItem('codemia_user_id'); 
+      
     }, 2500);
     return () => clearTimeout(timer);
   }, []);
@@ -104,7 +93,7 @@ export default function App() {
           <div className="flex flex-col items-center gap-3">
              <div className="flex items-center gap-2 text-indigo-400 bg-slate-900/50 px-4 py-2 rounded-full border border-slate-800">
               <Loader2 className="animate-spin w-4 h-4" />
-              <span className="text-xs font-mono tracking-wider">INITIALIZING DB SINGLETON...</span>
+              <span className="text-xs font-mono tracking-wider">INITIALIZING SYSTEM...</span>
             </div>
             <p className="text-xs text-slate-600 mt-2">DBMS Term Project Demo</p>
           </div>
