@@ -11,6 +11,8 @@ interface Props {
   onViewCourse?: (courseId: number) => void;
 }
 
+const API_URL = 'http://localhost:5000/api';
+
 export const InstructorPanel: React.FC<Props> = ({ currentUserId, onViewCourse }) => {
   const [myCourses, setMyCourses] = useState<Course[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -26,11 +28,11 @@ export const InstructorPanel: React.FC<Props> = ({ currentUserId, onViewCourse }
 
   // Fetch profile + courses from backend
   useEffect(() => {
-    fetch(`/api/instructor/${currentUserId}/profile`)
+    fetch(`${API_URL}/instructor/${currentUserId}/profile`)
       .then(res => res.json())
       .then(data => setProfile(data));
 
-    fetch(`/api/instructor/${currentUserId}/courses`)
+    fetch(`${API_URL}/instructor/${currentUserId}/courses`)
       .then(res => res.json())
       .then(data => setMyCourses(data));
   }, [currentUserId, editorCourseId]);
@@ -53,9 +55,9 @@ export const InstructorPanel: React.FC<Props> = ({ currentUserId, onViewCourse }
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this course?")) return;
 
-    await fetch(`/api/courses/${id}`, { method: "DELETE" });
+    await fetch(`${API_URL}/courses/${id}`, { method: "DELETE" });
 
-    fetch(`/api/instructor/${currentUserId}/courses`)
+    fetch(`${API_URL}/instructor/${currentUserId}/courses`)
       .then(res => res.json())
       .then(data => setMyCourses(data));
   };
@@ -64,13 +66,13 @@ export const InstructorPanel: React.FC<Props> = ({ currentUserId, onViewCourse }
     e.preventDefault();
 
     if (isEditing && currentCourseId) {
-      await fetch(`/api/courses/${currentCourseId}`, {
+      await fetch(`${API_URL}/courses/${currentCourseId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: courseTitle, description: courseDesc })
       });
     } else {
-      await fetch(`/api/courses`, {
+      await fetch(`${API_URL}/courses`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -81,7 +83,7 @@ export const InstructorPanel: React.FC<Props> = ({ currentUserId, onViewCourse }
       });
     }
 
-    fetch(`/api/instructor/${currentUserId}/courses`)
+    fetch(`${API_URL}/instructor/${currentUserId}/courses`)
       .then(res => res.json())
       .then(data => setMyCourses(data));
 

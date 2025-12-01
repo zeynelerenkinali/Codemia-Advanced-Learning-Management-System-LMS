@@ -11,6 +11,8 @@ interface Props {
   onDeleteAccount?: () => void;
 }
 
+const API_URL = 'http://localhost:5000/api';
+
 export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDeleteAccount }) => {
   // General State
   const [name, setName] = useState(currentUser.name);
@@ -34,7 +36,7 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDele
       if (currentUser.role !== UserRole.INSTRUCTOR) return;
 
       try {
-        const res = await fetch(`/api/instructors/${currentUser.id}`);
+        const res = await fetch(`${API_URL}/instructors/${currentUser.id}`);
         if (res.ok) {
           const data = await res.json();
           setBio(data.bio || '');
@@ -51,7 +53,7 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDele
     e.preventDefault();
     try {
       // 1. Update User
-      const res = await fetch(`/api/users/${currentUser.id}`, {
+      const res = await fetch(`${API_URL}/users/${currentUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -68,7 +70,7 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDele
 
       // 2. If instructor, update instructor table
       if (currentUser.role === UserRole.INSTRUCTOR) {
-        await fetch(`/api/instructors/${currentUser.id}`, {
+        await fetch(`${API_URL}/instructors/${currentUser.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ bio, expertise_area: expertise })
@@ -88,7 +90,7 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDele
     if (!confirm("Are you absolutely sure you want to delete your account? This action cannot be undone.")) return;
 
     try {
-      await fetch(`/api/users/${currentUser.id}`, {
+      await fetch(`${API_URL}/users/${currentUser.id}`, {
         method: 'DELETE'
       });
 
