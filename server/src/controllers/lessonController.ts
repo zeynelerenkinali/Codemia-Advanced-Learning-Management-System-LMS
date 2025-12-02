@@ -50,3 +50,22 @@ export const deleteLesson = async (req: any, res: any) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+export const getLessonById = async (req: any, res: any) => {
+    const { id } = req.params;
+    try {
+        // Fetch specific lesson by lesson_id
+        const result = await db.query(
+            'SELECT lesson_id as id, * FROM lessons WHERE lesson_id = $1', 
+            [id]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Lesson not found' });
+        }
+        
+        res.json(result.rows[0]);
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+};
