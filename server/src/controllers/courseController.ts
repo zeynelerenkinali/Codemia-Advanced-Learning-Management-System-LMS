@@ -36,10 +36,11 @@ export const getCoursesByInstructor = async (req: any, res: any) => {
 
 //Added
 export const getCourseById = async (req: any, res: any) => {
+    console.log("👉 Request received for Course ID:", req.params.id);
     try {
         const { id } = req.params;
         
-        const result = await db.query('SELECT * FROM courses WHERE id = $1', [id]);
+        const result = await db.query('SELECT * FROM courses WHERE course_id = $1', [id]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({ message: "Course not found" });

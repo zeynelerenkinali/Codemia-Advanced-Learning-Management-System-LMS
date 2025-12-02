@@ -17,7 +17,6 @@ const router = Router();
 router.get('/', getAllCourses);
 router.post('/', createCourse);
 //Added
-router.get('/:id', getCourseById);
 router.put('/:id', updateCourse);
 router.delete('/:id', deleteCourse);
 
@@ -31,5 +30,7 @@ router.get('/:courseId/lessons', getLessonsByCourse);
 // Enrollment
 router.post('/:courseId/enroll', enrollStudent);
 router.get('/:courseId/check-enrollment/:studentId', checkEnrollment);
+
+router.get('/:id', getCourseById);
 
 export default router;
