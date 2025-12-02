@@ -130,12 +130,17 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
 
   // --- LESSON OPERATIONS ---
 
-  const handleCreateLesson = async (e: React.MouseEvent) => {
+const handleCreateLesson = async (e: React.MouseEvent) => {
     e.preventDefault();
     try {
-        const newLesson = await authFetch(`/courses/${courseId}/lessons`, {
+        // ERROR WAS HERE: 
+        // 1. The URL was wrong (Backend expects POST to /api/lessons, not /api/courses/.../lessons)
+        // 2. 'course_id' was missing in the body
+        
+        const newLesson = await authFetch(`/lessons`, { 
             method: 'POST',
             body: JSON.stringify({
+                course_id: courseId, // <--- CRITICAL: Must send course ID
                 title: 'New Lesson',
                 content: 'Content goes here...',
                 type: 'article',
@@ -144,15 +149,15 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
             })
         });
         
-        // Listeyi güncelle ve yeni dersi seç
+        // Update list and select the new lesson
         const updatedLessons = [...lessons, newLesson];
         setLessons(updatedLessons);
         setSelectedLessonId(newLesson.id);
     } catch (error) {
-        alert("Ders oluşturulamadı.");
+        console.error(error); // Log the actual error to see details
+        alert("Ders oluşturulamadı. (Lesson creation failed)");
     }
   };
-
   const handleDeleteLesson = async (e: React.MouseEvent, id: number) => {
     e.preventDefault();
     e.stopPropagation();
