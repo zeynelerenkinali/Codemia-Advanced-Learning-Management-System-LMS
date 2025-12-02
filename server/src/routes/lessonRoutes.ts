@@ -6,6 +6,7 @@ import {
     deleteLesson,
     getLessonById // <--- Import the new function
 } from '../controllers/lessonController';
+import { getQuizByLesson } from '../controllers/quizController';
 
 const router = Router();
 
@@ -15,6 +16,9 @@ router.get('/course/:courseId', getLessonsByCourse);
 // GET /api/lessons/:id  (Get ONE specific lesson) <--- THIS WAS MISSING
 router.get('/:id', getLessonById);
 
+// GET /api/lessons/:lessonId/quiz
+router.get('/:lessonId/quiz', getQuizByLesson);
+
 // POST /api/lessons
 router.post('/', createLesson);
 
@@ -23,5 +27,6 @@ router.put('/:id', updateLesson);
 
 // DELETE /api/lessons/:id
 router.delete('/:id', deleteLesson);
+
 
 export default router;
