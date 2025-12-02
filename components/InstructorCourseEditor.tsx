@@ -242,14 +242,16 @@ const handleCreateQuiz = async (e: React.MouseEvent) => {
 
   // --- QUESTION OPERATIONS ---
 
-  const handleAddQuestion = async (e: React.MouseEvent) => {
+const handleAddQuestion = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!currentQuiz) return;
 
     try {
-        const newQ = await authFetch(`/quizzes/${currentQuiz.id}/questions`, {
+        // DÜZELTME: URL'yi '/questions' yaptık ve quiz_id'yi body'ye ekledik.
+        const newQ = await authFetch(`/questions`, { 
             method: 'POST',
             body: JSON.stringify({
+                quiz_id: currentQuiz.id, // <--- EKLENDİ
                 text: 'Yeni Soru',
                 type: QuestionType.MULTIPLE_CHOICE,
                 correct_answer: 'Option A',
@@ -261,6 +263,7 @@ const handleCreateQuiz = async (e: React.MouseEvent) => {
         setQuestions([...questions, newQ]);
         startEditingQuestion(newQ);
     } catch (error) {
+        console.error(error);
         alert("Soru eklenemedi.");
     }
   };

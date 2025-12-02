@@ -7,6 +7,7 @@ import userRoutes from './routes/userRoutes';
 import lessonRoutes from './routes/lessonRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import progressRoutes from './routes/progressRoutes';
+import quizRoutes from './routes/quizRoutes';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use(`/api/users`, userRoutes);
 app.use(`/api/lessons`, lessonRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/quizzes', quizRoutes);
 
 // --- ROUTES DÜZELTME ---
 // Frontend /api/login ve /api/register diye istek atıyor.

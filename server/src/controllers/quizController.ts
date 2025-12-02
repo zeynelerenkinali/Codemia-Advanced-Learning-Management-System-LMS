@@ -4,13 +4,24 @@ import { db } from '../db';
 export const createQuiz = async (req: any, res: any) => {
     const { lesson_id, title, passing_score } = req.body;
     try {
-        // Check if quiz already exists for this lesson? (Optional logic)
+        // 1. ÖNCE KONTROL ET: Bu dersin zaten quizi var mı?
+        const check = await db.query('SELECT * FROM quizzes WHERE lesson_id = $1', [lesson_id]);
         
+        if (check.rows.length > 0) {
+            // Eğer varsa, hata vermek yerine var olan quizi döndürelim (Frontend hataya düşmesin)
+            return res.json(check.rows[0]);
+            
+            // Alternatif: Hata döndürmek isterseniz:
+            // return res.status(409).json({ message: 'Bu dersin zaten bir quizi var.' });
+        }
+
+        // 2. Yoksa yeni oluştur
         const result = await db.query(
             'INSERT INTO quizzes (lesson_id, title, passing_score) VALUES ($1, $2, $3) RETURNING *',
             [lesson_id, title, passing_score]
         );
         res.status(201).json(result.rows[0]);
+
     } catch (err: any) {
         console.error(err);
         res.status(500).json({ error: err.message });
