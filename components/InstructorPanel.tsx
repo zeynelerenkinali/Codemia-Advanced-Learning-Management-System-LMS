@@ -28,11 +28,11 @@ export const InstructorPanel: React.FC<Props> = ({ currentUserId, onViewCourse }
 
   // Fetch profile + courses from backend
   useEffect(() => {
-    fetch(`${API_URL}/instructor/${currentUserId}/profile`)
+    fetch(`${API_URL}/users/${currentUserId}/instructor-profile`)
       .then(res => res.json())
       .then(data => setProfile(data));
 
-    fetch(`${API_URL}/instructor/${currentUserId}/courses`)
+    fetch(`${API_URL}/courses/instructor/${currentUserId}`)
       .then(res => res.json())
       .then(data => setMyCourses(data));
   }, [currentUserId, editorCourseId]);
@@ -57,7 +57,7 @@ export const InstructorPanel: React.FC<Props> = ({ currentUserId, onViewCourse }
 
     await fetch(`${API_URL}/courses/${id}`, { method: "DELETE" });
 
-    fetch(`${API_URL}/instructor/${currentUserId}/courses`)
+    fetch(`${API_URL}/courses/instructor/${currentUserId}`)
       .then(res => res.json())
       .then(data => setMyCourses(data));
   };
@@ -83,7 +83,7 @@ export const InstructorPanel: React.FC<Props> = ({ currentUserId, onViewCourse }
       });
     }
 
-    fetch(`${API_URL}/instructor/${currentUserId}/courses`)
+    fetch(`${API_URL}/courses/instructor/${currentUserId}`)
       .then(res => res.json())
       .then(data => setMyCourses(data));
 
