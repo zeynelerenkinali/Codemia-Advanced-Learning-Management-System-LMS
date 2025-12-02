@@ -24,3 +24,27 @@ export const getReviews = async (req: any, res: any) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+export const createReview = async (req: any, res: any) => {
+  // The data comes from the Frontend (should come inside the body)
+  const { student_id, course_id, rating, comment } = req.body;
+
+  try {
+    const query = `
+      INSERT INTO reviews (student_id, course_id, rating, comment, created_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      RETURNING *;
+    `;
+    
+    const values = [student_id, course_id, rating, comment];
+    
+    const result = await db.query(query, values);
+    
+    // Başarılı olursa 201 Created kodu ve yeni yorumu döndür
+    res.status(201).json(result.rows[0]);
+
+  } catch (err: any) {
+    console.error('Review create error:', err);
+    res.status(500).json({ error: 'Yorum kaydedilemedi.' });
+  }
+};

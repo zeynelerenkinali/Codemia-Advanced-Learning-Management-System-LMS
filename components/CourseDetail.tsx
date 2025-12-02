@@ -158,30 +158,37 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
     }
   };
 
-  const handleSubmitReview = async (e: React.FormEvent) => {
+const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     setReviewError(null);
     try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`/api/reviews`, {
+        
+        // FIX 1: Use API_URL (http://localhost:5000/api) instead of relative path
+        const res = await fetch(`${API_URL}/reviews`, { 
             method: 'POST',
             headers: { 
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json' 
             },
             body: JSON.stringify({
-                courseId,
-                studentId: currentUser.id,
+                // FIX 2: Change keys to match database/backend (snake_case)
+                course_id: courseId,       // was courseId
+                student_id: currentUser.id,// was studentId
                 rating: newRating,
                 comment: newComment
             })
         });
 
-        if (!res.ok) throw new Error("Yorum gönderilemedi.");
+        if (!res.ok) {
+            // Optional: Get the actual error message from backend
+            const errData = await res.json(); 
+            throw new Error(errData.error || "Yorum gönderilemedi.");
+        }
         
         setNewComment('');
         setShowReviewForm(false);
-        loadData();
+        loadData(); // Refresh list
     } catch (err: any) {
         setReviewError(err.message);
     }
