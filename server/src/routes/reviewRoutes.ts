@@ -1,7 +1,7 @@
-import express from 'express';
+import { Router } from 'express';
 import { getReviews } from '../controllers/reviewController';
 
-const router = express.Router();
+const router = Router();
 
 // GET /api/reviews
 router.get('/', getReviews);

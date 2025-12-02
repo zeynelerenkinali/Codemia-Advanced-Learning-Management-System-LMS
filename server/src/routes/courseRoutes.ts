@@ -8,7 +8,8 @@ import {
     enrollStudent,
     checkEnrollment,
     getEnrolledCourses,
-    getCourseById
+    getCourseById,
+    getReviewsByCourse
 } from '../controllers/courseController';
 import { getLessonsByCourse } from '../controllers/lessonController';
 
@@ -23,6 +24,7 @@ router.delete('/:id', deleteCourse);
 // Special Filters
 router.get('/instructor/:instructorId', getCoursesByInstructor);
 router.get('/student/:studentId', getEnrolledCourses);
+router.get('/:courseId/reviews', getReviewsByCourse);
 
 // Sub-resources
 router.get('/:courseId/lessons', getLessonsByCourse);

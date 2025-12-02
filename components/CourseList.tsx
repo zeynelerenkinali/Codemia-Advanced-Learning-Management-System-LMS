@@ -30,7 +30,7 @@ export const CourseList: React.FC<Props> = ({ onSelectCourse, currentUserId }) =
         // Promise.all ile tüm gerekli verileri PARALEL çekiyoruz (Daha hızlı)
         const [coursesRes, enrollmentsRes, reviewsRes] = await Promise.all([
             fetch(`${API_URL}/courses`, { headers }), // 1. Tüm Kurslar
-            fetch(`${API_URL}/users/${currentUserId}/enrollments`, { headers }), // 2. Benim Kayıtlarım
+            fetch(`${API_URL}/courses/student/${currentUserId}`, { headers }), // 2. Benim Kayıtlarım
             fetch(`${API_URL}/reviews`, { headers }) // 3. Tüm Yorumlar (Puan hesabı için)
         ]);
 

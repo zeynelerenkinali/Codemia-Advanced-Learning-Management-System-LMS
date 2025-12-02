@@ -70,14 +70,17 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
             setAvgRating(0);
         }
 
-        // 5. Kayıt ve İlerleme Durumu (Sadece Öğrenciler İçin)
+        // 5. Kayıt ve İlerleme Durumu (Sadece Öğrenciler İçin) 
         if (currentUser.role !== UserRole.INSTRUCTOR) {
             const enrollRes = await fetch(`${API_URL}/courses/student/${currentUser.id}`, { headers });
             if (enrollRes.ok) {
                  const enrollments = await enrollRes.json();
                  // Backend'den gelen yapıya göre kursu bul
-                 const enrollment = enrollments.find((e: any) => e.id === courseId || e.course_id === courseId);
-                 
+                 //const enrollment = enrollments.find((e: any) => e.id === courseId || e.course_id === courseId);
+
+                // DEBUGGING: Add this line to see what the server is sending!
+                console.log("MY ENROLLMENTS:", enrollments);
+                const enrollment = enrollments.find((e: any) => Number(e.course_id) === Number(courseId) || Number(e.id) === Number(courseId) );
                  if (enrollment) {
                      setIsEnrolled(true);
                      

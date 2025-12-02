@@ -130,6 +130,22 @@ export const checkEnrollment = async (req: any, res: any) => {
     }
 };
 
+// Add this if it's missing!
+export const getReviewsByCourse = async (req: any, res: any) => {
+    try {
+        const { courseId } = req.params;
+        // This matches your Schema table 'reviews'
+        const result = await db.query(
+            'SELECT r.*, u.name as student_name FROM reviews r JOIN users u ON r.student_id = u.user_id WHERE r.course_id = $1', 
+            [courseId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error fetching reviews" });
+    }
+};
+
 export const enrollStudent = async (req: any, res: any) => {
     const { courseId } = req.params;
     const { studentId } = req.body;

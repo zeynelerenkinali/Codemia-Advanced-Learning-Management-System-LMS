@@ -32,7 +32,7 @@ export const StudentMyCourses: React.FC<Props> = ({ onSelectCourse, currentUserI
 
         // Backend'de bu kullanıcının kayıtlı olduğu kursları ve ilerleme durumunu çeken endpoint
         // (Backend'de /users/:id/enrollments endpoint'i olduğunu varsayıyoruz)
-        const response = await fetch(`${API_URL}/users/${currentUserId}/enrollments`, { headers });
+        const response = await fetch(`${API_URL}/courses/student/${currentUserId}`, { headers });
         
         if (response.ok) {
             const data = await response.json();
