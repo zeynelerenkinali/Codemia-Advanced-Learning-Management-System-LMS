@@ -202,22 +202,26 @@ const handleCreateLesson = async (e: React.MouseEvent) => {
 
   // --- QUIZ OPERATIONS ---
 
-  const handleCreateQuiz = async (e: React.MouseEvent) => {
+const handleCreateQuiz = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!selectedLessonId) return;
 
     try {
-        const newQuiz = await authFetch(`/lessons/${selectedLessonId}/quiz`, {
+        // FIXED URL and BODY
+        const newQuiz = await authFetch(`/quizzes`, { // Changed to /quizzes
             method: 'POST',
             body: JSON.stringify({
+                lesson_id: selectedLessonId, // <--- ADDED THIS
                 title: `${lTitle} Assessment`,
                 passing_score: 70
             })
         });
+        
         setCurrentQuiz(newQuiz);
         setQuizTitle(newQuiz.title);
         setQuestions([]);
     } catch (error) {
+        console.error(error);
         alert("Quiz oluşturulamadı. Backend loglarını kontrol et.");
     }
   };
