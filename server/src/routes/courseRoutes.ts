@@ -7,7 +7,8 @@ import {
     getCoursesByInstructor, 
     enrollStudent,
     checkEnrollment,
-    getEnrolledCourses
+    getEnrolledCourses,
+    getCourseById
 } from '../controllers/courseController';
 import { getLessonsByCourse } from '../controllers/lessonController';
 
@@ -15,9 +16,11 @@ const router = Router();
 
 router.get('/', getAllCourses);
 router.post('/', createCourse);
+//Added
+router.get('/:id', getCourseById);
 router.put('/:id', updateCourse);
 router.delete('/:id', deleteCourse);
-    
+
 // Special Filters
 router.get('/instructor/:instructorId', getCoursesByInstructor);
 router.get('/student/:studentId', getEnrolledCourses);

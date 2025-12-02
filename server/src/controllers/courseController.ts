@@ -34,6 +34,24 @@ export const getCoursesByInstructor = async (req: any, res: any) => {
     }
 };
 
+//Added
+export const getCourseById = async (req: any, res: any) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await db.query('SELECT * FROM courses WHERE id = $1', [id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Course not found" });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
 export const getEnrolledCourses = async (req: any, res: any) => {
     const { studentId } = req.params;
     try {
