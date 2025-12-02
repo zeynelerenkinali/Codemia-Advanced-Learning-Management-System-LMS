@@ -4,13 +4,16 @@ import {
     deleteAccount, 
     becomeInstructor, 
     getInstructorProfile,
-    updateInstructorProfile
+    updateInstructorProfile,
+    getUserById
 } from '../controllers/userController';
 
 const router = Router();
 
 router.put('/:id', updateUser);
 router.delete('/:id', deleteAccount);
+// --- 2. ADD THIS NEW ROUTE ---
+router.get('/:id', getUserById);
 
 // Instructor Logic
 router.post('/:id/become-instructor', becomeInstructor);

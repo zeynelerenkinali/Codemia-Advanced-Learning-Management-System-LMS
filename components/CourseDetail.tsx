@@ -72,7 +72,7 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
 
         // 5. Kayıt ve İlerleme Durumu (Sadece Öğrenciler İçin)
         if (currentUser.role !== UserRole.INSTRUCTOR) {
-            const enrollRes = await fetch(`${API_URL}/users/${currentUser.id}/enrollments`, { headers });
+            const enrollRes = await fetch(`${API_URL}/courses/student/${currentUser.id}`, { headers });
             if (enrollRes.ok) {
                  const enrollments = await enrollRes.json();
                  // Backend'den gelen yapıya göre kursu bul
@@ -132,15 +132,16 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
     if (currentUser.role === UserRole.INSTRUCTOR) return;
     try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/enrollments`, {
+        const res = await fetch(`${API_URL}/courses/${courseId}/enroll`, {
             method: 'POST',
             headers: { 
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json' 
             },
             body: JSON.stringify({
-                studentId: currentUser.id,
-                courseId: courseId
+                studentId: currentUser.id
+                // We don't need to send courseId in body anymore because it's in the URL,
+                // but keeping it here usually doesn't hurt.
             })
         });
 
@@ -159,7 +160,7 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
     setReviewError(null);
     try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/reviews`, {
+        const res = await fetch(`/api/reviews`, {
             method: 'POST',
             headers: { 
                 'Authorization': `Bearer ${token}`,

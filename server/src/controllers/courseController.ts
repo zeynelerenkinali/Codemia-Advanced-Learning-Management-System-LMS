@@ -107,29 +107,62 @@ export const deleteCourse = async (req: any, res: any) => {
   }
 };
 
-export const enrollStudent = async (req: any, res: any) => {
-    const { courseId } = req.params;
-    const { studentId } = req.body;
+export const checkEnrollment = async (req: any, res: any) => {
     try {
-        await db.query(
-            'INSERT INTO enrollments (student_id, course_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-            [studentId, courseId]
+        const { courseId, studentId } = req.params;
+
+        // Query the enrollments table
+        const result = await db.query(
+            'SELECT * FROM enrollments WHERE course_id = $1 AND student_id = $2',
+            [courseId, studentId]
         );
-        res.json({ message: 'Enrolled successfully' });
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
+
+        // If we find a row, it means they are enrolled
+        if (result.rows.length > 0) {
+            return res.json({ enrolled: true });
+        } else {
+            return res.json({ enrolled: false });
+        }
+
+    } catch (error) {
+        console.error("Check Enrollment Error:", error);
+        res.status(500).json({ message: "Server error checking enrollment" });
     }
 };
 
-export const checkEnrollment = async (req: any, res: any) => {
-    const { courseId, studentId } = req.params;
+export const enrollStudent = async (req: any, res: any) => {
+    const { courseId } = req.params;
+    const { studentId } = req.body;
+
     try {
-        const result = await db.query(
+        // 1. Check if the course exists (Optional, but good practice)
+        const courseCheck = await db.query('SELECT * FROM courses WHERE course_id = $1', [courseId]);
+        if (courseCheck.rows.length === 0) {
+            return res.status(404).json({ message: "Course not found" });
+        }
+
+        // 2. Check if already enrolled
+        // Your schema has PRIMARY KEY (student_id, course_id), so duplicates will throw an error automatically.
+        // But checking first is cleaner.
+        const enrollmentCheck = await db.query(
             'SELECT * FROM enrollments WHERE student_id = $1 AND course_id = $2',
             [studentId, courseId]
         );
-        res.json({ isEnrolled: result.rows.length > 0, enrollment: result.rows[0] });
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
+
+        if (enrollmentCheck.rows.length > 0) {
+            return res.status(400).json({ message: "Student is already enrolled" });
+        }
+
+        // 3. Insert into 'enrollments' table (Matches your Schema!)
+        await db.query(
+            'INSERT INTO enrollments (student_id, course_id) VALUES ($1, $2)',
+            [studentId, courseId]
+        );
+
+        res.status(201).json({ message: "Enrollment successful" });
+
+    } catch (error) {
+        console.error("Enrollment Error:", error);
+        res.status(500).json({ message: "Server error" });
     }
 };
