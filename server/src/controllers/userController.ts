@@ -140,3 +140,18 @@ export const getUserEnrollments = async (req: any, res: any) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+export const getInstructorCourses = async (req: any, res: any) => {
+    const { id } = req.params; // instructor_id
+    try {
+        // Eğitmenin kendi oluşturduğu kursları getirir
+        const result = await db.query(
+            'SELECT * FROM courses WHERE instructor_id = $1 ORDER BY created_at DESC',
+            [id]
+        );
+        res.json(result.rows);
+    } catch (err: any) {
+        console.error("Get Instructor Courses Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+};

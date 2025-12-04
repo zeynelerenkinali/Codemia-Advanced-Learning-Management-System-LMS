@@ -36,7 +36,7 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDele
       if (currentUser.role !== UserRole.INSTRUCTOR) return;
 
       try {
-        const res = await fetch(`${API_URL}/instructors/${currentUser.id}`);
+        const res = await fetch(`${API_URL}/users/${currentUser.id}/instructor-profile`);
         if (res.ok) {
           const data = await res.json();
           setBio(data.bio || '');
@@ -70,10 +70,13 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDele
 
       // 2. If instructor, update instructor table
       if (currentUser.role === UserRole.INSTRUCTOR) {
-        await fetch(`${API_URL}/instructors/${currentUser.id}`, {
+        await fetch(`${API_URL}/users/${currentUser.id}/instructor-profile`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bio, expertise_area: expertise })
+          body: JSON.stringify({
+            bio,
+            expertise_area: expertise
+          })
         });
       }
 

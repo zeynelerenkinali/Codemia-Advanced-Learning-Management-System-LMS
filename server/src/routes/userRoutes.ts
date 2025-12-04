@@ -6,7 +6,8 @@ import {
     becomeInstructor, 
     getInstructorProfile,
     updateInstructorProfile,
-    getUserById
+    getUserById,
+    getInstructorCourses
 } from '../controllers/userController';
 
 const router = Router();
@@ -21,5 +22,6 @@ router.get('/:id', getUserById);
 router.post('/:id/become-instructor', becomeInstructor);
 router.get('/:id/instructor-profile', getInstructorProfile);
 router.put('/:id/instructor-profile', updateInstructorProfile);
+router.get('/instructor/:id', getInstructorCourses);
 
 export default router;
