@@ -13,6 +13,7 @@ export const AdminPanel: React.FC = () => {
   // Factory Demo State
   const [demoQType, setDemoQType] = useState<QuestionType>(QuestionType.MULTIPLE_CHOICE);
   const [generatedQuestion, setGeneratedQuestion] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
 
   // Backend'den Kullanıcıları Çek
   useEffect(() => {
@@ -42,6 +43,66 @@ export const AdminPanel: React.FC = () => {
 
     fetchUsers();
   }, []);
+
+          // --- ADD THIS FUNCTION ---
+    const handleUpdateUser = async (userId: number, updatedData: Partial<User>) => {
+        try {
+        const token = localStorage.getItem('token');
+        
+        // Send the PUT request to your newly fixed backend controller
+        const response = await fetch(`${API_URL}/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+            name: updatedData.name,
+            email: updatedData.email,
+            role: updatedData.role, // This is the key part!
+            // Add other fields if your form has them (city, country, etc.)
+            })
+        });
+
+        if (!response.ok) throw new Error("Update failed");
+
+        const result = await response.json();
+        
+        // Update the local state so the UI changes instantly without refreshing
+        setUsers(prevUsers => 
+            prevUsers.map(u => (u.id === userId ? { ...u, ...result } : u))
+        );
+
+        alert("User updated successfully!");
+        
+        } catch (error) {
+        console.error("Error updating user:", error);
+        alert("Failed to update user.");
+        }
+    };
+    const handleDeleteUser = async (userId: number) => {
+        if (!window.confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
+
+        try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/users/${userId}`, {
+            method: 'DELETE',
+            headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+            }
+        });
+
+        if (!response.ok) throw new Error("Delete failed");
+
+        // Remove the user from the list instantly
+        setUsers(prevUsers => prevUsers.filter(u => u.id !== userId));
+        alert("User deleted.");
+
+        } catch (error) {
+        console.error("Error deleting user:", error);
+        alert("Failed to delete user.");
+        }
+    };
 
   const handleGenerateQuestion = () => {
     // FACTORY PATTERN USAGE (Client side logic)
@@ -86,8 +147,22 @@ export const AdminPanel: React.FC = () => {
                                     {u.role}
                                 </span>
                             </td>
-                            <td className="p-3">
-                                <button className="text-indigo-600 font-bold hover:underline">Edit</button>
+                            <td className="p-3 flex gap-3">
+                                {/* Edit Button: Opens the modal */}
+                                <button 
+                                    onClick={() => setEditingUser(u)} 
+                                    className="text-indigo-600 font-bold hover:underline"
+                                >
+                                    Edit
+                                </button>
+                                
+                                {/* Delete Button: Calls delete function */}
+                                <button 
+                                    onClick={() => handleDeleteUser(u.id)} 
+                                    className="text-red-600 font-bold hover:underline"
+                                >
+                                    Remove
+                                </button>
                             </td>
                         </tr>
                     ))}
@@ -135,6 +210,68 @@ export const AdminPanel: React.FC = () => {
             </div>
         )}
       </div>
+      {/* --- EDIT USER MODAL --- */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
+            <h3 className="text-xl font-bold text-slate-800 mb-4">Edit User</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Name</label>
+                <input 
+                  type="text" 
+                  value={editingUser.name}
+                  onChange={e => setEditingUser({ ...editingUser, name: e.target.value })}
+                  className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Email</label>
+                <input 
+                  type="email" 
+                  value={editingUser.email}
+                  onChange={e => setEditingUser({ ...editingUser, email: e.target.value })}
+                  className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Role</label>
+                <select 
+                  value={editingUser.role}
+                  onChange={e => setEditingUser({ ...editingUser, role: e.target.value as any })}
+                  className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="student">Student</option>
+                  <option value="instructor">Instructor</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button 
+                onClick={() => setEditingUser(null)}
+                className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  // Call the update function with the data from the modal state
+                  handleUpdateUser(editingUser.id, editingUser);
+                  setEditingUser(null); // Close modal
+                }}
+                className="px-4 py-2 bg-indigo-600 text-white font-bold rounded hover:bg-indigo-700"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -2,12 +2,16 @@ import { db } from '../db';
 
 export const updateUser = async (req: any, res: any) => {
     const { id } = req.params;
-    const { name, email, country, city, postal_code } = req.body;
+    // 1. We extract 'role' here...
+    const { name, email, country, city, postal_code, role } = req.body;
     
     try {
         const result = await db.query(
-            'UPDATE users SET name=$1, email=$2, country=$3, city=$4, postal_code=$5 WHERE user_id=$6 RETURNING user_id as id, *',
-            [name, email, country, city, postal_code, id]
+            // 2. ...so we MUST add 'role=$6' to the query here!
+            'UPDATE users SET name=$1, email=$2, country=$3, city=$4, postal_code=$5, role=$6 WHERE user_id=$7 RETURNING user_id as id, *',
+            
+            // 3. ...and add 'role' to the list of values (and move id to the end, $7)
+            [name, email, country, city, postal_code, role, id]
         );
         res.json(result.rows[0]);
     } catch (err: any) {
