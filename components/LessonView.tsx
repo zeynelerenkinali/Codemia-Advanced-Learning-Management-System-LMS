@@ -51,6 +51,7 @@ export const LessonView: React.FC<Props> = ({ lessonId, currentUserId, onBack, o
             method: 'POST',
             headers,
             body: JSON.stringify({
+                studentId: currentUserId,
                 lessonId: lessonId,
                 completed: true
             })
