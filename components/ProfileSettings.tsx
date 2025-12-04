@@ -49,28 +49,35 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDele
   }, [currentUser]);
 
   // Save Profile
+// Save Profile
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // 1. Update User
+      // 1. Update User (BURASI HATALIYDI)
       const res = await fetch(`${API_URL}/users/${currentUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
           email,
-          password_hash: password,
+          password, // Backend'de 'password' olarak bekliyorsan böyle gönder.
           country,
           city,
-          postal_code: zip
+          postal_code: zip,
+          role: currentUser.role // <--- EKSİK OLAN SATIR BUYDU! Bunu eklemezsen veritabanı hata verir.
         })
       });
+
+      // Hata kontrolü ekleyelim ki beyaz ekran olmasın
+      if (!res.ok) {
+        throw new Error('User update failed');
+      }
 
       const updatedUser = await res.json();
 
       // 2. If instructor, update instructor table
       if (currentUser.role === UserRole.INSTRUCTOR) {
-        await fetch(`${API_URL}/users/${currentUser.id}/instructor-profile`, {
+        const resInstructor = await fetch(`${API_URL}/users/${currentUser.id}/instructor-profile`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -78,13 +85,18 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDele
             expertise_area: expertise
           })
         });
+
+        if (!resInstructor.ok) {
+             console.warn("Instructor profile update failed but user updated");
+        }
       }
 
       onUpdate(updatedUser);
       setMessage("Profile updated successfully!");
       setTimeout(() => setMessage(null), 3000);
-    } catch {
-      alert("Failed to update profile");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to update profile. Please check console for details.");
     }
   };
 

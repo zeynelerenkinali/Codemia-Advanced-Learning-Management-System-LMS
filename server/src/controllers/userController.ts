@@ -1,56 +1,31 @@
 import { db } from '../db';
 
+// --- USER OPERATIONS ---
+
 export const updateUser = async (req: any, res: any) => {
     const { id } = req.params;
-    // 1. We extract 'role' here...
     const { name, email, country, city, postal_code, role } = req.body;
     
     try {
         const result = await db.query(
-            // 2. ...so we MUST add 'role=$6' to the query here!
             'UPDATE users SET name=$1, email=$2, country=$3, city=$4, postal_code=$5, role=$6 WHERE user_id=$7 RETURNING user_id as id, *',
-            
-            // 3. ...and add 'role' to the list of values (and move id to the end, $7)
             [name, email, country, city, postal_code, role, id]
         );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
         res.json(result.rows[0]);
     } catch (err: any) {
+        console.error("Update User Error:", err);
         res.status(500).json({ error: err.message });
-    }
-};
-
-export const becomeInstructor = async (req: any, res: any) => {
-    const { id } = req.params; // User ID
-    const { bio, expertise_area } = req.body;
-
-    const client = await db.connect();
-    try {
-        await client.query('BEGIN');
-
-        // 1. Update User Role
-        await client.query("UPDATE users SET role='instructor' WHERE user_id=$1", [id]);
-
-        // 2. Insert into Instructors Table (Subclass)
-        await client.query(
-            "INSERT INTO instructors (instructor_id, bio, expertise_area) VALUES ($1, $2, $3)",
-            [id, bio, expertise_area]
-        );
-
-        const result = await client.query('SELECT user_id as id, * FROM users WHERE user_id=$1', [id]);
-        
-        await client.query('COMMIT');
-        res.json(result.rows[0]);
-    } catch (err: any) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: err.message });
-    } finally {
-        client.release();
     }
 };
 
 export const getAllUsers = async (req: any, res: any) => {
     try {
-        // Fetch all users, but exclude sensitive data like password_hash!
+        // Fetch all users, excluding sensitive data like password_hash
         const result = await db.query(
             'SELECT user_id as id, name, email, role, created_at FROM users ORDER BY created_at DESC'
         );
@@ -69,13 +44,61 @@ export const getUserById = async (req: any, res: any) => {
         const result = await db.query('SELECT user_id, name, role FROM users WHERE user_id = $1', [id]);
         
         if (result.rows.length === 0) {
-            return res.status(404).json({ message: "Course not found" });
+            return res.status(404).json({ message: "User not found" });
         }
 
         res.json(result.rows[0]);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });
+    }
+};
+
+export const deleteAccount = async (req: any, res: any) => {
+    const { id } = req.params;
+    try {
+        // ON DELETE CASCADE in SQL schema handles everything (deleting user deletes related instructor/student data)
+        await db.query('DELETE FROM users WHERE user_id = $1', [id]);
+        res.json({ message: 'Account deleted successfully' });
+    } catch (err: any) {
+        console.error("Delete Account Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// --- INSTRUCTOR OPERATIONS ---
+
+export const becomeInstructor = async (req: any, res: any) => {
+    const { id } = req.params; // User ID
+    const { bio, expertise_area } = req.body;
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Update User Role in users table
+        await client.query("UPDATE users SET role='instructor' WHERE user_id=$1", [id]);
+
+        // 2. Insert into Instructors Table
+        // We use ON CONFLICT DO UPDATE to handle cases where user might already have a record
+        const insertQuery = `
+            INSERT INTO instructors (instructor_id, bio, expertise_area) 
+            VALUES ($1, $2, $3)
+            ON CONFLICT (instructor_id) 
+            DO UPDATE SET bio = $2, expertise_area = $3
+        `;
+        await client.query(insertQuery, [id, bio, expertise_area]);
+
+        const result = await client.query('SELECT user_id as id, * FROM users WHERE user_id=$1', [id]);
+        
+        await client.query('COMMIT');
+        res.json(result.rows[0]);
+    } catch (err: any) {
+        await client.query('ROLLBACK');
+        console.error("Become Instructor Error:", err);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
     }
 };
 
@@ -86,36 +109,55 @@ export const getInstructorProfile = async (req: any, res: any) => {
         if (result.rows.length === 0) return res.status(404).json({ message: 'Instructor profile not found' });
         res.json(result.rows[0]);
     } catch (err: any) {
+        console.error("Get Instructor Profile Error:", err);
         res.status(500).json({ error: err.message });
     }
 };
 
+// *** THIS IS THE FUNCTION YOU NEEDED FIXED ***
 export const updateInstructorProfile = async (req: any, res: any) => {
     const { id } = req.params;
     const { bio, expertise_area } = req.body;
+    
     try {
+        // This query updates only the 'instructors' table.
+        // It does NOT touch the 'users' table, preventing the "null role" error.
         const result = await db.query(
             'UPDATE instructors SET bio=$1, expertise_area=$2 WHERE instructor_id=$3 RETURNING *',
             [bio, expertise_area, id]
         );
-        res.json(result.rows[0]);
+
+        // Check if the update actually happened
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Instructor record not found. Make sure the user is an instructor.' });
+        }
+
+        res.json({
+            message: "Profile updated successfully",
+            data: result.rows[0]
+        });
     } catch (err: any) {
+        console.error("Update Instructor Profile Error:", err);
         res.status(500).json({ error: err.message });
     }
 };
 
-export const deleteAccount = async (req: any, res: any) => {
-    const { id } = req.params;
+export const getInstructorCourses = async (req: any, res: any) => {
+    const { id } = req.params; // instructor_id
     try {
-        // ON DELETE CASCADE in SQL schema handles everything
-        await db.query('DELETE FROM users WHERE user_id = $1', [id]);
-        res.json({ message: 'Account deleted successfully' });
+        const result = await db.query(
+            'SELECT * FROM courses WHERE instructor_id = $1 ORDER BY created_at DESC',
+            [id]
+        );
+        res.json(result.rows);
     } catch (err: any) {
+        console.error("Get Instructor Courses Error:", err);
         res.status(500).json({ error: err.message });
     }
 };
 
-// --- EKLENEN KISIM ---
+// --- STUDENT/ENROLLMENT OPERATIONS ---
+
 export const getUserEnrollments = async (req: any, res: any) => {
     const { id } = req.params;
     try {
@@ -136,22 +178,7 @@ export const getUserEnrollments = async (req: any, res: any) => {
         const result = await db.query(query, [id]);
         res.json(result.rows);
     } catch (err: any) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
-    }
-};
-
-export const getInstructorCourses = async (req: any, res: any) => {
-    const { id } = req.params; // instructor_id
-    try {
-        // Eğitmenin kendi oluşturduğu kursları getirir
-        const result = await db.query(
-            'SELECT * FROM courses WHERE instructor_id = $1 ORDER BY created_at DESC',
-            [id]
-        );
-        res.json(result.rows);
-    } catch (err: any) {
-        console.error("Get Instructor Courses Error:", err);
+        console.error("Get Enrollments Error:", err);
         res.status(500).json({ error: err.message });
     }
 };
