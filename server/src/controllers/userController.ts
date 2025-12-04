@@ -44,6 +44,19 @@ export const becomeInstructor = async (req: any, res: any) => {
     }
 };
 
+export const getAllUsers = async (req: any, res: any) => {
+    try {
+        // Fetch all users, but exclude sensitive data like password_hash!
+        const result = await db.query(
+            'SELECT user_id as id, name, email, role, created_at FROM users ORDER BY created_at DESC'
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Get All Users Error:", error);
+        res.status(500).json({ message: "Server error fetching users" });
+    }
+};
+
 export const getUserById = async (req: any, res: any) => {
     console.log("👉 Request received for User ID:", req.params.id);
     try {

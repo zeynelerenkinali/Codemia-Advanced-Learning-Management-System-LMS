@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { 
+    getAllUsers,
     updateUser, 
     deleteAccount, 
     becomeInstructor, 
@@ -10,6 +11,7 @@ import {
 
 const router = Router();
 
+router.get('/', getAllUsers);
 router.put('/:id', updateUser);
 router.delete('/:id', deleteAccount);
 // --- 2. ADD THIS NEW ROUTE ---
