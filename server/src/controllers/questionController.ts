@@ -122,12 +122,13 @@ export const updateQuestion = async (req: any, res: any) => {
     try {
         await client.query('BEGIN');
 
-        // 1. Map Frontend Type to Database Type
+        // 1. Map Frontend Type to Database Type (hyphen -> underscore)
         let dbType = type;
         if (type === 'multiple-choice') dbType = 'multiple_choice';
         if (type === 'true-false') dbType = 'true_false';
+        if (type === 'short-answer') dbType = 'short_answer';
 
-        // 2. Update Parent Table (questions)
+        // 2. Update Parent Table
         const updateParentQuery = `
             UPDATE questions 
             SET text = $1, question_type = $2, points = $3 
@@ -141,14 +142,14 @@ export const updateQuestion = async (req: any, res: any) => {
             return res.status(404).json({ error: 'Question not found' });
         }
 
-        // 3. Clear old Subclass Data 
-        // (Strategy: Delete from all subclasses for this ID, then re-insert. 
-        // This handles cases where the user changes the Question Type safely.)
+        // 3. Clear OLD Subclass Data (Critical for Type Switching)
         await client.query('DELETE FROM multiple_choice_questions WHERE question_id = $1', [id]);
         await client.query('DELETE FROM true_false_questions WHERE question_id = $1', [id]);
         await client.query('DELETE FROM short_answer_questions WHERE question_id = $1', [id]);
 
-        // 4. Insert into new Subclass Table
+        // 4. Insert into NEW Subclass Table
+        let finalLookup = null; // Store this for the response object
+
         if (dbType === 'multiple_choice') {
             await client.query(
                 `INSERT INTO multiple_choice_questions (question_id, options, correct_answer)
@@ -164,25 +165,28 @@ export const updateQuestion = async (req: any, res: any) => {
             );
         } 
         else if (dbType === 'short_answer') {
-            const lookup = req.body.lookup_table || [correct_answer];
+            // Default to correct_answer if lookup is empty
+            finalLookup = req.body.lookup_table || [correct_answer];
+            
             await client.query(
                 `INSERT INTO short_answer_questions (question_id, correct_answer, lookup_table)
                  VALUES ($1, $2, $3)`,
-                [id, correct_answer, lookup]
+                [id, correct_answer, finalLookup]
             );
         }
 
         await client.query('COMMIT');
         
-        // 5. Return the updated object (Re-construct it for the frontend)
+        // 5. Return the full object so Frontend updates instantly
         const updatedQ = {
             id: Number(id),
             quiz_id: parentRes.rows[0].quiz_id,
             text,
             points: parentRes.rows[0].points,
-            type: type, // Return the type frontend expects
-            options,
-            correct_answer
+            type: type, // Keep the frontend format (hyphen)
+            options: options || null, // Explicit null if not multiple choice
+            correct_answer,
+            lookup_table: finalLookup // <--- ADDED THIS!
         };
 
         res.json(updatedQ);

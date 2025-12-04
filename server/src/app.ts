@@ -31,7 +31,7 @@ app.use('/api/questions', questionRoutes);
 // --- ROUTES DÜZELTME ---
 // Frontend /api/login ve /api/register diye istek atıyor.
 // Bu yüzden burayı '/api/auth' yerine '/api' yapıyoruz.
-app.use('/api', authRoutes); 
+app.use('/api', authRoutes);
 
 // Health Check
 app.get('/', (req, res) => {
