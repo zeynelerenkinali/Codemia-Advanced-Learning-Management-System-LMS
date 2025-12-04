@@ -2,25 +2,29 @@
 import { db } from '../db';
 
 export const getAllCourses = async (req: any, res: any) => {
-  try {
-    // Derived attribute calculation via JOINs
-    const query = `
-      SELECT c.course_id as id, c.title, c.description, c.instructor_id, c.price, c.created_at,
-      COALESCE(AVG(r.rating), 0) as avg_rating,
-      COUNT(r.review_id) as review_count
-      FROM courses c
-      LEFT JOIN reviews r ON c.course_id = r.course_id
-      GROUP BY c.course_id
-      ORDER BY c.created_at DESC
-    `;
-    const result = await db.query(query);
-    res.json(result.rows.map(row => ({
-        ...row,
-        avg_rating: parseFloat(row.avg_rating).toFixed(1)
-    })));
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const query = `
+            SELECT 
+                c.*, 
+                u.name as instructor_name,
+                -- Calculate Average Rating (Round to 1 decimal)
+                ROUND(COALESCE(AVG(r.rating), 0), 1) as avg_rating,
+                -- Count Total Reviews
+                COUNT(r.review_id)::int as review_count
+            FROM courses c
+            JOIN users u ON c.instructor_id = u.user_id
+            LEFT JOIN reviews r ON c.course_id = r.course_id
+            GROUP BY c.course_id, u.user_id
+            ORDER BY c.created_at DESC
+        `;
+
+        const result = await db.query(query);
+        res.json(result.rows);
+
+    } catch (error) {
+        console.error("Get All Courses Error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
 };
 
 export const getCoursesByInstructor = async (req: any, res: any) => {
@@ -54,18 +58,47 @@ export const getCourseById = async (req: any, res: any) => {
 };
 
 export const getEnrolledCourses = async (req: any, res: any) => {
-    const { studentId } = req.params;
     try {
+        const { studentId } = req.params;
+
         const query = `
-            SELECT c.course_id as id, c.title, c.description, c.instructor_id
-            FROM courses c
-            JOIN enrollments e ON c.course_id = e.course_id
+            SELECT 
+                c.*, 
+                u.name as instructor_name,
+                e.enrolled_at,
+                -- 1. Get Total Lessons Count
+                (SELECT COUNT(*)::int FROM lessons l WHERE l.course_id = c.course_id) as total_lessons,
+                
+                -- 2. Get Completed Lessons Count for THIS student
+                (SELECT COUNT(*)::int FROM lesson_progress lp 
+                 JOIN lessons l ON lp.lesson_id = l.lesson_id 
+                 WHERE l.course_id = c.course_id 
+                 AND lp.student_id = $1 
+                 AND lp.completed = TRUE
+                ) as completed_lessons
+
+            FROM enrollments e
+            JOIN courses c ON e.course_id = c.course_id
+            JOIN users u ON c.instructor_id = u.user_id
             WHERE e.student_id = $1
         `;
+
         const result = await db.query(query, [studentId]);
-        res.json(result.rows);
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
+
+        // 3. Calculate Percentage in JavaScript before sending
+        const coursesWithProgress = result.rows.map(course => {
+            const total = course.total_lessons || 0;
+            const completed = course.completed_lessons || 0;
+            const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
+            
+            return { ...course, progress }; // Add 'progress' field to response
+        });
+
+        res.json(coursesWithProgress);
+
+    } catch (error) {
+        console.error("Get Enrolled Courses Error:", error);
+        res.status(500).json({ message: "Server error" });
     }
 };
 

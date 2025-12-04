@@ -43,8 +43,13 @@ export const createReview = async (req: any, res: any) => {
     // Başarılı olursa 201 Created kodu ve yeni yorumu döndür
     res.status(201).json(result.rows[0]);
 
-  } catch (err: any) {
-    console.error('Review create error:', err);
-    res.status(500).json({ error: 'Yorum kaydedilemedi.' });
-  }
+  } catch (error: any) {
+        // 1. Check for the specific "Unique Violation" error code (23505)
+        if (error.code === '23505') {
+            return res.status(400).json({ message: "You have already reviewed this course." });
+        }
+
+        console.error("Review Error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
 };

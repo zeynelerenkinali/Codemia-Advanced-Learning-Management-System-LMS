@@ -250,6 +250,7 @@ export default function App() {
               <StudentMyCourses 
                   currentUserId={currentUser.id}
                   onSelectCourse={(id) => {
+                      console.log("App received ID:", id);
                       setActiveCourseId(id);
                       setView('course_detail');
                   }}
