@@ -635,7 +635,7 @@ const handleAddQuestion = async (e: React.MouseEvent) => {
                                                                     q.type === QuestionType.MULTIPLE_CHOICE ? 'bg-purple-50 text-purple-600 border-purple-200' :
                                                                     'bg-orange-50 text-orange-600 border-orange-200'
                                                                 }`}>
-                                                                    {q.type.replace('_', ' ')}
+                                                                    {(q.type || "unknown").replace('-', ' ').toUpperCase()}
                                                                 </span>
                                                             </div>
                                                             <p className="text-sm text-slate-800 font-medium truncate pr-4">{q.text || '(Empty Question)'}</p>
