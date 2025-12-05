@@ -49,7 +49,23 @@ export const InstructorCourseEditor: React.FC<Props> = ({ courseId, onBack }) =>
   const [editQText, setEditQText] = useState('');
   const [editQType, setEditQType] = useState<QuestionType>(QuestionType.MULTIPLE_CHOICE);
   const [editQCorrect, setEditQCorrect] = useState('');
-  const [editQOptions, setEditQOptions] = useState<string[]>([]);
+  useEffect(() => {
+      if (editQType === QuestionType.MULTIPLE_CHOICE) {
+          // If options are empty, fill them with 4 placeholders
+          setEditQOptions(prev => (prev.length === 0 ? ['', '', '', ''] : prev));
+          // If correct answer is empty, default to first option
+          setEditQCorrect(prev => prev || 'Option A');
+      } 
+      else if (editQType === QuestionType.TRUE_FALSE) {
+          setEditQOptions(['True', 'False']);
+          setEditQCorrect('True');
+      } 
+      else if (editQType === QuestionType.SHORT_ANSWER) {
+          setEditQOptions([]);
+          setEditQCorrect('');
+      }
+  }, [editQType]);
+  const [editQOptions, setEditQOptions] = useState<string[]>(['', '', '', '']);
 
   // 1. Kurs ve Dersleri Yükle
   useEffect(() => {
@@ -246,22 +262,38 @@ const handleAddQuestion = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!currentQuiz) return;
 
+    // 1. Define the initial data clearly here
+    const initialType = QuestionType.MULTIPLE_CHOICE;
+    const initialOptions = ['Option A', 'Option B', 'Option C', 'Option D'];
+    const initialCorrect = 'Option A';
+
     try {
-        // DÜZELTME: URL'yi '/questions' yaptık ve quiz_id'yi body'ye ekledik.
-        const newQ = await authFetch(`/questions`, { 
+        const newQ_Partial = await authFetch(`/questions`, { 
             method: 'POST',
             body: JSON.stringify({
-                quiz_id: currentQuiz.id, // <--- EKLENDİ
-                text: 'Yeni Soru',
-                type: QuestionType.MULTIPLE_CHOICE,
-                correct_answer: 'Option A',
-                options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                quiz_id: currentQuiz.id,
+                text: 'New Question',
+                type: initialType,
+                correct_answer: initialCorrect,
+                options: initialOptions,
                 points: 10
             })
         });
         
-        setQuestions([...questions, newQ]);
-        startEditingQuestion(newQ);
+        // 2. CRITICAL FIX: Merge the Backend ID with our Local Data
+        // The backend might return type as "multiple_choice" (underscore), so we override it with our safe variable
+        const fullQuestionObj = {
+            ...newQ_Partial,         // Gets the new ID
+            type: initialType,       // Force the correct Frontend Type
+            options: initialOptions, // Force the options (since backend response misses them)
+            correct_answer: initialCorrect
+        };
+
+        setQuestions([...questions, fullQuestionObj]);
+        
+        // 3. Edit using the COMPLETE object
+        startEditingQuestion(fullQuestionObj); 
+
     } catch (error) {
         console.error(error);
         alert("Soru eklenemedi.");
@@ -282,12 +314,46 @@ const handleAddQuestion = async (e: React.MouseEvent) => {
       }
   };
 
-  const startEditingQuestion = (q: Question) => {
+const startEditingQuestion = (q: Question) => {
       setEditingQuestionId(q.id);
       setEditQText(q.text);
-      setEditQType(q.type);
       setEditQCorrect(q.correct_answer);
-      setEditQOptions(q.options || []);
+
+      // --- 1. NORMALIZE THE TYPE (Fix Underscore vs Hyphen) ---
+      // The backend might send "multiple_choice", but we need QuestionType.MULTIPLE_CHOICE
+      let normalizedType = q.type as any;
+
+      if (normalizedType === 'multiple_choice' || normalizedType === 'multiple-choice') {
+          normalizedType = QuestionType.MULTIPLE_CHOICE;
+      } 
+      else if (normalizedType === 'true_false' || normalizedType === 'true-false') {
+          normalizedType = QuestionType.TRUE_FALSE;
+      }
+      else if (normalizedType === 'short_answer' || normalizedType === 'short-answer') {
+          normalizedType = QuestionType.SHORT_ANSWER;
+      }
+
+      setEditQType(normalizedType); // <--- Update state with the clean type
+
+      // --- 2. SETUP OPTIONS ---
+      let loadedOptions = q.options || [];
+
+      // If Multiple Choice, ensure we have 4 boxes ready
+      if (normalizedType === QuestionType.MULTIPLE_CHOICE) {
+          if (loadedOptions.length === 0) {
+              loadedOptions = ['Option A', 'Option B', 'Option C', 'Option D'];
+          }
+          // Pad to 4 if partially filled
+          while (loadedOptions.length < 4) {
+              loadedOptions.push('');
+          }
+      } 
+      else if (normalizedType === QuestionType.SHORT_ANSWER) {
+           // Ensure it's not null
+           loadedOptions = loadedOptions || [];
+      }
+
+      setEditQOptions(loadedOptions);
   };
 
   const handleSaveQuestion = async (e: React.MouseEvent) => {
