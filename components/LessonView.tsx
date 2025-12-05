@@ -71,6 +71,24 @@ export const LessonView: React.FC<Props> = ({ lessonId, currentUserId, onBack, o
     loadLessonData();
   }, [lessonId, currentUserId]);
 
+  
+  // Helper to extract Video ID from various YouTube URL formats
+const getYouTubeEmbedUrl = (url: string) => {
+    if (!url) return '';
+    
+    // Regex to handle "youtube.com/watch?v=ID", "youtu.be/ID", etc.
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+
+    if (match && match[2].length === 11) {
+        // Return the clean embed URL
+        return `https://www.youtube.com/embed/${match[2]}`;
+    }
+    
+    // Fallback if it's already an embed link or invalid
+    return url;
+};
+
   const getYouTubeEmbedId = (url: string) => {
     if (!url) return null;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -106,35 +124,37 @@ export const LessonView: React.FC<Props> = ({ lessonId, currentUserId, onBack, o
         
         {/* VIDEO PLAYER SECTION */}
         {lesson.type === 'video' ? (
-           <div className="mb-8 bg-black rounded-xl overflow-hidden shadow-2xl aspect-video relative flex items-center justify-center">
-             {embedId ? (
-                <iframe 
-                  className="w-full h-full"
-                  src={`https://www.youtube-nocookie.com/embed/${embedId}?rel=0&modestbranding=1&playsinline=1&controls=1`}
-                  title={lesson.title}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                ></iframe>
-             ) : (
-                // Fallback for direct MP4 or invalid links
-                lesson.content.endsWith('.mp4') ? (
-                    <video controls className="w-full h-full">
-                        <source src={lesson.content} type="video/mp4" />
-                        Your browser does not support the video tag.
-                    </video>
-                ) : (
-                    <div className="text-center text-white p-6">
-                        <Play size={48} className="mx-auto mb-2 opacity-50" />
-                        <p className="font-bold">External Video Content</p>
-                        <a href={lesson.content} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline break-all mt-2 block">
-                            {lesson.content}
-                        </a>
-                        <p className="text-xs text-gray-400 mt-2">(Enter a valid YouTube URL in the Instructor Editor to see the embed player)</p>
-                    </div>
-                )
-             )}
-           </div>
+          <div className="mb-8 bg-black rounded-xl overflow-hidden shadow-2xl aspect-video relative flex items-center justify-center">
+            {embedId ? (
+              <iframe 
+                className="w-full h-full"
+                // ✅ Using the calculated embedId here
+                src={`https://www.youtube-nocookie.com/embed/${embedId}?rel=0&modestbranding=1&playsinline=1&controls=1`}
+                title={lesson.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin" // Added this for better privacy compatibility
+              ></iframe>
+            ) : (
+              // Fallback for direct MP4 or invalid links
+              lesson.content && lesson.content.endsWith('.mp4') ? (
+                  <video controls className="w-full h-full">
+                      <source src={lesson.content} type="video/mp4" />
+                      Your browser does not support the video tag.
+                  </video>
+              ) : (
+                  <div className="text-center text-white p-6">
+                      <Play size={48} className="mx-auto mb-2 opacity-50" />
+                      <p className="font-bold">External Video Content</p>
+                      <a href={lesson.content} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline break-all mt-2 block">
+                          {lesson.content}
+                      </a>
+                      <p className="text-xs text-gray-400 mt-2">(Enter a valid YouTube URL in the Instructor Editor to see the embed player)</p>
+                  </div>
+              )
+            )}
+          </div>
         ) : (
             <div className="prose prose-slate max-w-none mb-8">
                 <p className="text-lg leading-relaxed whitespace-pre-line">{lesson.content}</p>
