@@ -82,7 +82,7 @@ export const getQuizByLesson = async (req: any, res: any) => {
             [lessonId]
         );
         
-        if (result.rows.length === 0) return res.status(404).json({ message: 'No quiz found' });
+        if (result.rows.length === 0) {  return res.status(200).json(null); }
         
         res.json(result.rows[0]);
     } catch (err: any) {
@@ -105,15 +105,15 @@ export const deleteQuiz = async (req: any, res: any) => {
 // 4. Get Quiz By ID (NEW FUNCTION - Was Missing)
 // This is needed for the GET /api/quizzes/:id request
 export const getQuizById = async (req: any, res: any) => {
-    const { id } = req.params;
     try {
+        const { id } = req.params;
         const result = await db.query(
             'SELECT quiz_id as id, * FROM quizzes WHERE quiz_id = $1', 
             [id]
         );
         
-        if (result.rows.length === 0) return res.status(404).json({ message: 'Quiz not found' });
-        
+        if (result.rows.length === 0) {  return res.status(200).json(null); }
+    
         res.json(result.rows[0]);
     } catch (err: any) {
         res.status(500).json({ error: err.message });
