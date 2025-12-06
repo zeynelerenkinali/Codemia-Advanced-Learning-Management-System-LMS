@@ -151,7 +151,7 @@ export const CourseDetail: React.FC<Props> = ({ courseId, currentUser, onSelectL
         if (res.ok) {
             loadData(); // Sayfayı yenile
         } else {
-            alert("Kayıt işlemi başarısız.");
+            alert("Enrollment process failed.");
         }
     } catch (error) {
         console.error(error);
@@ -183,7 +183,7 @@ const handleSubmitReview = async (e: React.FormEvent) => {
         if (!res.ok) {
             // Optional: Get the actual error message from backend
             const errData = await res.json(); 
-            throw new Error(errData.error || "Yorum gönderilemedi.");
+            throw new Error(errData.error || "You have already reviewed this course.");
         }
         
         setNewComment('');

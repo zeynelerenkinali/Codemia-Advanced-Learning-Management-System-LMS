@@ -289,6 +289,7 @@ export default function App() {
           {view === 'quiz' && activeQuizId && (
             <QuizView 
               quizId={activeQuizId}
+              currentUserId={currentUser.id}
               onBack={() => setView('lesson')}
             />
           )}

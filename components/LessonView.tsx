@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Lesson, Quiz } from '../types';
-import { progressSubject } from '../services/observers/ProgressObserver';
 import { FileText, Video, Paperclip, ExternalLink, Play, Loader2 } from 'lucide-react';
 
 interface Props {
@@ -16,6 +15,15 @@ export const LessonView: React.FC<Props> = ({ lessonId, currentUserId, onBack, o
   const [loading, setLoading] = useState(true);
   const [lesson, setLesson] = useState<Lesson | undefined>();
   const [quiz, setQuiz] = useState<Quiz | undefined>();
+  const [quizResult, setQuizResult] = useState<any>(null);
+
+  // Helper to extract Video ID
+  const getYouTubeEmbedId = (url: string) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
 
   useEffect(() => {
     const loadLessonData = async () => {
@@ -27,26 +35,35 @@ export const LessonView: React.FC<Props> = ({ lessonId, currentUserId, onBack, o
             'Authorization': token ? `Bearer ${token}` : ''
         };
 
-        // 1. Ders Detayını Çek
+        // 1. Get Lesson
         const lessonRes = await fetch(`${API_URL}/lessons/${lessonId}`, { headers });
-        if (!lessonRes.ok) throw new Error("Ders bulunamadı");
+        if (!lessonRes.ok) throw new Error("Lesson not found");
         const lessonData = await lessonRes.json();
         setLesson(lessonData);
 
-        // 2. Bu derse ait Quiz varsa çek
-        // (Backend'de /lessons/:id/quiz endpoint'i hata dönerse quiz yok demektir, try-catch ile yönetiyoruz)
+        // 2. Get Quiz & History
         try {
             const quizRes = await fetch(`${API_URL}/lessons/${lessonId}/quiz`, { headers });
             if (quizRes.ok) {
                 const quizData = await quizRes.json();
                 setQuiz(quizData);
+
+                // Check History
+                try {
+                    const historyRes = await fetch(`${API_URL}/quizzes/${quizData.id}/result/${currentUserId}`, { headers });
+                    if (historyRes.ok) {
+                        const historyData = await historyRes.json();
+                        setQuizResult(historyData);
+                    }
+                } catch (historyError) {
+                    console.log("No previous attempt found.");
+                }
             }
         } catch (e) {
-            console.log("Bu derste quiz yok.");
+            console.log("No quiz for this lesson.");
         }
 
-        // 3. İlerlemeyi Kaydet (Progress Tracking)
-        // Backend'e "Bu ders tamamlandı" bilgisini gönderiyoruz.
+        // 3. Mark Progress
         await fetch(`${API_URL}/progress`, {
             method: 'POST',
             headers,
@@ -57,58 +74,31 @@ export const LessonView: React.FC<Props> = ({ lessonId, currentUserId, onBack, o
             })
         });
 
-        // 4. OBSERVER PATTERN TRIGGER (Client-side UI Update)
-        // Sidebar'daki progress bar anında güncellensin diye.
-        progressSubject.notify(currentUserId, lessonId);
-
-      } catch (error) {
-        console.error("Ders yüklenirken hata:", error);
+      } catch (err) {
+          console.error(err);
       } finally {
-        setLoading(false);
+          setLoading(false);
       }
     };
 
     loadLessonData();
   }, [lessonId, currentUserId]);
 
-  
-  // Helper to extract Video ID from various YouTube URL formats
-const getYouTubeEmbedUrl = (url: string) => {
-    if (!url) return '';
-    
-    // Regex to handle "youtube.com/watch?v=ID", "youtu.be/ID", etc.
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-
-    if (match && match[2].length === 11) {
-        // Return the clean embed URL
-        return `https://www.youtube.com/embed/${match[2]}`;
-    }
-    
-    // Fallback if it's already an embed link or invalid
-    return url;
-};
-
-  const getYouTubeEmbedId = (url: string) => {
-    if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-  };
-
   if (loading) {
-      return <div className="flex h-screen items-center justify-center text-indigo-600"><Loader2 className="animate-spin mr-2"/> Ders İçeriği Yükleniyor...</div>;
+      return <div className="flex h-screen items-center justify-center text-indigo-600"><Loader2 className="animate-spin mr-2"/> Loading Content...</div>;
   }
 
-  if (!lesson) return <div className="text-center p-10 text-red-500">Ders bulunamadı.</div>;
+  if (!lesson) return <div className="text-center p-10 text-red-500">Lesson not found.</div>;
 
   const embedId = getYouTubeEmbedId(lesson.content);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-10">
       <button onClick={onBack} className="text-indigo-600 hover:underline mb-4 block">&larr; Back to Course</button>
       
       <div className="bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+        
+        {/* Header */}
         <div className="flex items-center gap-3 mb-4">
             <span className={`px-2 py-1 rounded text-xs font-bold uppercase flex items-center gap-1 ${
                 lesson.type === 'video' ? 'bg-red-100 text-red-700' :
@@ -122,22 +112,21 @@ const getYouTubeEmbedUrl = (url: string) => {
 
         <h1 className="text-3xl font-bold text-slate-900 mb-6">{lesson.title}</h1>
         
-        {/* VIDEO PLAYER SECTION */}
+        {/* CONTENT SECTION */}
         {lesson.type === 'video' ? (
           <div className="mb-8 bg-black rounded-xl overflow-hidden shadow-2xl aspect-video relative flex items-center justify-center">
             {embedId ? (
               <iframe 
                 className="w-full h-full"
-                // ✅ Using the calculated embedId here
                 src={`https://www.youtube-nocookie.com/embed/${embedId}?rel=0&modestbranding=1&playsinline=1&controls=1`}
                 title={lesson.title}
                 frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                // ✅ CLEANED UP: Removed deprecated features like accelerometer/gyroscope to stop warnings
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
                 allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin" // Added this for better privacy compatibility
+                referrerPolicy="strict-origin-when-cross-origin"
               ></iframe>
             ) : (
-              // Fallback for direct MP4 or invalid links
               lesson.content && lesson.content.endsWith('.mp4') ? (
                   <video controls className="w-full h-full">
                       <source src={lesson.content} type="video/mp4" />
@@ -150,7 +139,6 @@ const getYouTubeEmbedUrl = (url: string) => {
                       <a href={lesson.content} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline break-all mt-2 block">
                           {lesson.content}
                       </a>
-                      <p className="text-xs text-gray-400 mt-2">(Enter a valid YouTube URL in the Instructor Editor to see the embed player)</p>
                   </div>
               )
             )}
@@ -161,7 +149,7 @@ const getYouTubeEmbedUrl = (url: string) => {
             </div>
         )}
 
-        {/* Attachments Section */}
+        {/* ATTACHMENTS */}
         {lesson.attachment_urls && lesson.attachment_urls.length > 0 && (
             <div className="mb-8 pt-6 border-t border-slate-100">
                 <h4 className="font-bold text-slate-700 mb-2 flex items-center gap-2">
@@ -183,23 +171,46 @@ const getYouTubeEmbedUrl = (url: string) => {
                 </div>
             </div>
         )}
-
+        
+        {/* QUIZ SECTION */}
         {quiz && (
-          <div className="border-t pt-6 mt-6">
-            <h3 className="text-xl font-bold mb-4">Lesson Assessment</h3>
-            <div className="flex items-center justify-between p-6 bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm">
-              <div>
-                <h4 className="font-bold text-lg text-indigo-900 mb-1">{quiz.title}</h4>
-                <p className="text-sm text-indigo-700">Pass score required: <span className="font-bold">{quiz.passing_score}%</span></p>
-              </div>
-              <button 
-                onClick={() => onStartQuiz(quiz.id)}
-                className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
-              >
-                Start Quiz
-              </button>
+            <div className="border-t pt-6 mt-6">
+                <h3 className="text-xl font-bold mb-4">Lesson Assessment</h3>
+
+                {quizResult ? (
+                    // --- COMPLETED STATE ---
+                    <div className="p-8 bg-green-50 rounded-xl border border-green-200 text-center shadow-sm animate-in fade-in zoom-in duration-300">
+                        <div className="mb-4">
+                            <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
+                                Completed
+                            </span>
+                        </div>
+                        <h4 className="font-bold text-2xl text-green-900 mb-2">Assessment Finished!</h4>
+                        <p className="text-green-700 mb-6">You have already submitted this quiz.</p>
+                        <div className="flex items-baseline justify-center gap-2 mb-4">
+                            <span className="text-6xl font-black text-indigo-600">{quizResult.score}</span>
+                            <span className="text-2xl font-medium text-slate-400">/ 100</span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                            Submitted on: {new Date(quizResult.completed_at || Date.now()).toLocaleDateString()}
+                        </p>
+                    </div>
+                ) : (
+                    // --- START STATE ---
+                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between p-6 bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm">
+                        <div>
+                            <h4 className="font-bold text-lg text-indigo-900 mb-1">{quiz.title}</h4>
+                            <p className="text-sm text-indigo-700">Pass score required: <span className="font-bold">{quiz.passing_score}%</span></p>
+                        </div>
+                        <button 
+                            onClick={() => onStartQuiz(quiz.id)}
+                            className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 whitespace-nowrap"
+                        >
+                            Start Quiz
+                        </button>
+                    </div>
+                )}
             </div>
-          </div>
         )}
       </div>
     </div>

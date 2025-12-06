@@ -10,7 +10,7 @@ interface Props {
 
 const API_URL = 'http://localhost:5000/api';
 
-export const QuizView: React.FC<Props> = ({ quizId, onBack }) => {
+export const QuizView: React.FC<Props> = ({ quizId, currentUserId, onBack}) => {
   const [loading, setLoading] = useState(true);
   const [quiz, setQuiz] = useState<Quiz | undefined>(undefined);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -56,12 +56,40 @@ export const QuizView: React.FC<Props> = ({ quizId, onBack }) => {
     loadQuizData();
   }, [quizId]);
 
-  const handleSubmit = () => {
-    // Strategy Pattern: Puanlama mantığı seçilen strateji sınıfına devredilir.
+const handleSubmit = async () => {
+    
+    // --- Existing Strategy Pattern Logic ---
     const strategy = getStrategy();
     const calculatedScore = strategy.calculateScore(questions, answers);
+    
     setScore(calculatedScore);
     setSubmitted(true);
+
+    try {
+        const token = localStorage.getItem('token');
+
+        await fetch(`${API_URL}/quizzes/submit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+            },
+            body: JSON.stringify({
+                studentId: currentUserId, // Make sure you have this from props!
+                quizId: quizId,           // Make sure you have this from props!
+                score: calculatedScore
+            })
+        });
+        
+        console.log("Score saved successfully!");
+
+        // Optional: specific callback if you want to notify parent
+        // if (onComplete) onComplete(calculatedScore);
+
+    } catch (error) {
+        console.error("Failed to save quiz score:", error);
+        // Optional: Show an error toast/alert to the user
+    }
   };
 
   // UI Yardımcısı: Cevabın doğru olup olmadığını kontrol eder (renklendirme için)

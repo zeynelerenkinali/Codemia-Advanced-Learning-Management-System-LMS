@@ -27,6 +27,51 @@ export const createQuiz = async (req: any, res: any) => {
     }
 };
 
+// 1. Submit Quiz (Save Score)
+export const submitQuizResult = async (req: any, res: any) => {
+    const { studentId, quizId, score } = req.body;
+
+    try {
+        const query = `
+            INSERT INTO quiz_results (student_id, quiz_id, score)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (student_id, quiz_id) 
+            DO UPDATE SET score = $3, completed_at = NOW()
+            RETURNING *;
+        `;
+        const result = await db.query(query, [studentId, quizId, score]);
+        
+        // Also mark the lesson as completed in lesson_progress!
+        // (You might need to fetch lesson_id from quiz_id first, but let's assume this is handled separately or purely for score)
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error("Submit Quiz Error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// 2. Check Previous Result
+export const getQuizResult = async (req: any, res: any) => {
+    const { quizId, studentId } = req.params; // or query params depending on your route
+
+    try {
+        const result = await db.query(
+            'SELECT * FROM quiz_results WHERE quiz_id = $1 AND student_id = $2',
+            [quizId, studentId]
+        );
+
+        if (result.rows.length > 0) {
+            res.json(result.rows[0]); // Returns { score: 80, ... }
+        } else {
+            res.json(null); // No previous attempt
+        }
+    } catch (error) {
+        console.error("Get Quiz Result Error:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
 // 2. Get Quiz by Lesson
 export const getQuizByLesson = async (req: any, res: any) => {
     const { lessonId } = req.params;
