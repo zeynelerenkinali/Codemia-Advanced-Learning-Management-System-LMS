@@ -23,6 +23,7 @@ export default function App() {
   const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
   const [activeLessonId, setActiveLessonId] = useState<number | null>(null);
   const [activeQuizId, setActiveQuizId] = useState<number | null>(null);
+  const [previousView, setPreviousView] = useState<string>('courses');
   
   useEffect(() => {
     const timer = setTimeout(() => {
