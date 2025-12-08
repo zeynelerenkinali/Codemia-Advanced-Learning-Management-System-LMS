@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Course, Lesson, LessonType, QuestionType, Quiz, Question } from '../types';
 import { Plus, Trash2, Save, ArrowLeft, FileText, HelpCircle, Paperclip, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { QuestionFactory } from '../services/factories/QuestionFactory';
 
 interface Props {
   courseId: number;
@@ -262,36 +263,33 @@ const handleAddQuestion = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!currentQuiz) return;
 
-    // 1. Define the initial data clearly here
-    const initialType = QuestionType.MULTIPLE_CHOICE;
-    const initialOptions = ['Option A', 'Option B', 'Option C', 'Option D'];
-    const initialCorrect = 'Option A';
+    // STEP 1: Use the Factory to generate the object
+    // "Hey Factory, I need a default Multiple Choice question for this Quiz ID."
+    const newQuestionPayload = QuestionFactory.createDefault(
+        QuestionType.MULTIPLE_CHOICE, 
+        currentQuiz.id
+    );
 
     try {
+        // STEP 2: Send the Factory-created object to the backend
         const newQ_Partial = await authFetch(`/questions`, { 
             method: 'POST',
-            body: JSON.stringify({
-                quiz_id: currentQuiz.id,
-                text: 'New Question',
-                type: initialType,
-                correct_answer: initialCorrect,
-                options: initialOptions,
-                points: 10
-            })
+            body: JSON.stringify(newQuestionPayload)
         });
         
-        // 2. CRITICAL FIX: Merge the Backend ID with our Local Data
-        // The backend might return type as "multiple_choice" (underscore), so we override it with our safe variable
+        // STEP 3: Merge Backend ID with Factory Data
+        // We take the 'id' from the database response, 
+        // but we trust the 'options' and 'type' from our Factory.
         const fullQuestionObj = {
-            ...newQ_Partial,         // Gets the new ID
-            type: initialType,       // Force the correct Frontend Type
-            options: initialOptions, // Force the options (since backend response misses them)
-            correct_answer: initialCorrect
+            ...newQuestionPayload, // Has options, correct_answer, text
+            ...newQ_Partial,       // Has the new 'id'
+            // Ensure type is strictly the Enum (in case backend sends string)
+            type: newQuestionPayload.type 
         };
 
         setQuestions([...questions, fullQuestionObj]);
         
-        // 3. Edit using the COMPLETE object
+        // 4. Edit using the COMPLETE object
         startEditingQuestion(fullQuestionObj); 
 
     } catch (error) {
