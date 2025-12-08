@@ -237,21 +237,22 @@ export default function App() {
         </header>
 
         <div className="p-8 max-w-6xl mx-auto">
-          {view === 'home' && (
-             <CourseList 
+        {view === 'home' && (
+              <CourseList 
                 currentUserId={currentUser.id}
                 onSelectCourse={(id) => {
+                  setPreviousView('home'); 
                   setActiveCourseId(id);
                   setView('course_detail');
                 }} 
-             />
+              />
           )}
 
           {view === 'student_courses' && (
               <StudentMyCourses 
                   currentUserId={currentUser.id}
                   onSelectCourse={(id) => {
-                      console.log("App received ID:", id);
+                      setPreviousView('student_courses');
                       setActiveCourseId(id);
                       setView('course_detail');
                   }}
@@ -262,12 +263,7 @@ export default function App() {
             <CourseDetail 
               courseId={activeCourseId} 
               currentUser={currentUser}
-              onBack={() => {
-                // Return to appropriate previous screen
-                if (currentUser.role === UserRole.INSTRUCTOR) setView('instructor_panel');
-                else if (currentUser.role === UserRole.STUDENT) setView('student_courses');
-                else setView('home');
-              }}
+              onBack={() => setView(previousView)} 
               onSelectLesson={(id) => {
                 setActiveLessonId(id);
                 setView('lesson');

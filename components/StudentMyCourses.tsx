@@ -142,7 +142,7 @@ export const StudentMyCourses: React.FC<Props> = ({ onSelectCourse, currentUserI
                     </div>
 
                     <button 
-                        onClick={() => onSelectCourse(course.id)}
+                        onClick={() => onSelectCourse((course as any).course_id || course.id)}
                         className="w-full py-2.5 rounded-lg font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
                     >
                        <PlayCircle size={16} /> Continue
