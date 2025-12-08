@@ -13,7 +13,7 @@ const getHeaders = () => {
 
 export const UserRepository = {
   
-  // ID ile Kullanıcı Getir
+  // Get User by ID
   async getById(id: number): Promise<User | undefined> {
     try {
       const response = await fetch(`${API_URL}/users/${id}`, {
@@ -27,7 +27,7 @@ export const UserRepository = {
     }
   },
 
-  // Eğitmen Profilini Getir
+  // Get Instructor Profile
   async getInstructorProfile(userId: number): Promise<InstructorProfile | undefined> {
     try {
       const response = await fetch(`${API_URL}/instructors/${userId}`, {
@@ -40,7 +40,7 @@ export const UserRepository = {
     }
   },
 
-  // Eğitmen Olma İsteği (Promote)
+  // Request to Become an Instructor (Promote)
   async becomeInstructor(userId: number, bio: string, expertise: string): Promise<User> {
     const response = await fetch(`${API_URL}/instructors`, {
       method: 'POST',
@@ -55,7 +55,7 @@ export const UserRepository = {
     return await response.json();
   },
 
-  // Profil Güncelleme
+  // Update Profile
   async updateProfile(userId: number, data: Partial<User>): Promise<User> {
     const response = await fetch(`${API_URL}/users/${userId}`, {
       method: 'PUT', // veya PATCH
@@ -67,7 +67,7 @@ export const UserRepository = {
     return await response.json();
   },
 
-  // Eğitmen Bilgilerini Güncelleme
+  // Update Instructor Details
   async updateInstructorSpecifics(userId: number, bio: string, expertise: string): Promise<void> {
     const response = await fetch(`${API_URL}/instructors/${userId}`, {
       method: 'PUT',
@@ -78,7 +78,7 @@ export const UserRepository = {
     if (!response.ok) throw new Error("Eğitmen profili güncellenemedi.");
   },
 
-  // Hesap Silme
+  // Delete Account
   async deleteAccount(userId: number): Promise<void> {
     const response = await fetch(`${API_URL}/users/${userId}`, {
       method: 'DELETE',
