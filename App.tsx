@@ -229,7 +229,7 @@ export default function App() {
                 {view === 'admin' && 'Administration'}
                 {view === 'instructor_panel' && 'Instructor Dashboard'}
                 {(view as any) === 'become_instructor' && 'Join Our Faculty'}
-                {(view as any) === 'profile_settings' && 'Account Settings'}
+                {(view as any) === 'profile_settings' && 'Account Settings and Information'}
                 {view === 'sql_spec' && 'Database Specification'}
                 {view === 'patterns' && 'Architecture Overview'}
                 {(view === 'course_detail' || view === 'lesson' || view === 'quiz') && 'Classroom'}

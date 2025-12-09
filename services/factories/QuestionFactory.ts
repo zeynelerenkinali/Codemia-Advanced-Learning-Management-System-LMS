@@ -19,8 +19,8 @@ export class QuestionFactory {
       case QuestionType.MULTIPLE_CHOICE:
         return {
           ...base,
-          options: ['Option 1', 'Option 2', 'Option 3'],
-          correct_answer: 'Option 1'
+          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+          correct_answer: 'Option A'
         };
       case QuestionType.TRUE_FALSE:
         return {
