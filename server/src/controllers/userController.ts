@@ -195,30 +195,37 @@ export const getStudentProfile = async (
   try {
     const { id } = req.params;
 
-    // 1. step: Quiz sonuçlarından ortalamayı hesapla
-    const queryAvg = `
+    // 1. GPA CALCULATION (Previous logic)
+    const gpaQuery = `
       SELECT COALESCE(AVG(score), 0) as calculated_gpa 
       FROM quiz_results 
       WHERE student_id = $1
     `;
-    const resultAvg = await db.query(queryAvg, [id]);
-    
-    // take the calculated value (e.g.: 85.50)
-    const newGpa = Number(resultAvg.rows[0].calculated_gpa);
+    const gpaResult = await db.query(gpaQuery, [id]);
+    const newGpa = Number(gpaResult.rows[0].calculated_gpa);
 
-    // 2. step: write the value (UPDATE)
-    const queryUpdate = `
-      UPDATE students 
-      SET gpa = $1 
-      WHERE user_id = $2
+    // Update GPA in the database (Make it persistent)
+    await db.query('UPDATE students SET gpa = $1 WHERE user_id = $2', [newGpa, id]);
+
+
+    // 2. TOTAL COURSES COUNT (Newly added part)
+    // Go to the enrollments table and count how many rows this student has.
+    const countQuery = `
+      SELECT COUNT(*) as total_courses 
+      FROM enrollments 
+      WHERE student_id = $1
     `;
-    await db.query(queryUpdate, [newGpa, id]);
+    const countResult = await db.query(countQuery, [id]);
+    const totalCourses = Number(countResult.rows[0].total_courses);
 
-    // 3. step: Return up-to-date data on Frontend
+
+    // 3. RETURN RESULT
+    // Send both GPA and total course count to the frontend.
     res.json({
       gpa: newGpa,
+      total_courses: totalCourses
     });
-    
+
   } catch (error) {
     console.error("Get Student Profile Error:", error);
     res.status(500).json({ message: "Server error getting student profile" });
