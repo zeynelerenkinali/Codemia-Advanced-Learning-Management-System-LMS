@@ -6,6 +6,7 @@ import {
     becomeInstructor, 
     getInstructorProfile,
     updateInstructorProfile,
+    getStudentProfile,
     getUserById,
     getInstructorCourses,
 } from '../controllers/userController';
@@ -22,7 +23,7 @@ router.get('/:id/instructor-profile', getInstructorProfile);
 // FIX: This line will now run before updateUser, fixing the routing issue.
 // This ensures requests to update instructor profile go here, not to the generic user update.
 router.put('/:id/instructor-profile', updateInstructorProfile); 
-
+router.get('/:id/student-profile', getStudentProfile);
 router.get('/instructor/:id', getInstructorCourses);
 
 // --- GENERAL USER ROUTES ---

@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { Save, User as UserIcon, MapPin, Lock, Briefcase, CheckCircle, AlertTriangle, Trash2 } from 'lucide-react';
+import { Save, User as UserIcon, MapPin, Lock, Briefcase, CheckCircle, AlertTriangle, Trash2, GraduationCap } from 'lucide-react';
 
 interface Props {
   currentUser: User;
@@ -27,7 +27,7 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDele
   // Instructor State
   const [bio, setBio] = useState('');
   const [expertise, setExpertise] = useState('');
-
+  const [gpa, setGpa] = useState<string>('0.00');
   const [message, setMessage] = useState<string | null>(null);
 
   // Load Instructor Profile
@@ -44,31 +44,44 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDele
         }
       } catch {}
     };
+    // 2. Student GPA loading
+    const loadStudent = async () => {
+      if (currentUser.role !== UserRole.STUDENT) return;
+      try {
+        const res = await fetch(`${API_URL}/users/${currentUser.id}/student-profile`);
+        if (res.ok) {
+          const data = await res.json();
+          // Gelen veri sayı ise virgülden sonra 2 basamak formatla, yoksa olduğu gibi al
+          const gpaValue = typeof data.gpa === 'number' ? data.gpa.toFixed(2) : data.gpa;
+          setGpa(gpaValue || '0.00');
+        }
+      } catch {}
+    };
 
     loadInstructor();
+    loadStudent();
   }, [currentUser]);
 
   // Save Profile
-// Save Profile
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // 1. Update User (BURASI HATALIYDI)
+      // 1. Update User 
       const res = await fetch(`${API_URL}/users/${currentUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
           email,
-          password, // Backend'de 'password' olarak bekliyorsan böyle gönder.
+          password, 
           country,
           city,
           postal_code: zip,
-          role: currentUser.role // <--- EKSİK OLAN SATIR BUYDU! Bunu eklemezsen veritabanı hata verir.
+          role: currentUser.role 
         })
       });
 
-      // Hata kontrolü ekleyelim ki beyaz ekran olmasın
+      // error handling 
       if (!res.ok) {
         throw new Error('User update failed');
       }
@@ -232,6 +245,35 @@ export const ProfileSettings: React.FC<Props> = ({ currentUser, onUpdate, onDele
             <Save size={18} /> Save Changes
           </button>
         </div>
+
+        {/* Student Specific (READ ONLY GPA) */}
+        {currentUser.role === UserRole.STUDENT && (
+          <div className="bg-blue-50 p-6 rounded-xl shadow-sm border border-blue-100">
+            <h3 className="text-xl font-bold text-blue-900 mb-4 flex items-center gap-2">
+              <GraduationCap size={20} className="text-blue-600"/> Academic Performance
+            </h3>
+
+            <div>
+              <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Average Quiz Score (GPA)</label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={gpa} 
+                  disabled 
+                  className="w-full p-2 border border-blue-200 rounded bg-blue-100 text-blue-800 font-bold cursor-not-allowed" 
+                />
+                <div className="absolute right-3 top-2 text-xs text-blue-500 italic">
+                  Calculated from quizzes
+                </div>
+              </div>
+              <p className="text-xs text-blue-500 mt-2">
+                This score is automatically calculated based on your average performance across all completed quizzes.
+              </p>
+            </div>
+          </div>
+        )}
+
+
       </form>
 
       {/* Danger Zone */}
