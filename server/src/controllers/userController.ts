@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { Request, Response } from "express";
-import { pool } from "../db"; // adjust path to your db.ts
+
 
 // --- USER OPERATIONS ---
 
@@ -187,27 +187,24 @@ export const getUserEnrollments = async (req: any, res: any) => {
 
 
 // GPA calculation
-
-export const getStudentProfile = async (req: Request, res: Response) => {
+export const getStudentProfile = async (
+  req: Request<{ id: string }>,
+  res: Response
+) => {
   try {
     const { id } = req.params;
 
-    // quiz_results tablosundan bu öğrencinin (id) not ortalamasını alıyoruz.
-    // COALESCE: Eğer hiç sınav çözmediyse NULL yerine 0 döndürür.
     const query = `
       SELECT COALESCE(AVG(score), 0) as gpa 
       FROM quiz_results 
       WHERE student_id = $1
     `;
-    
-    // pool nesneni nasıl import ettiysen öyle kullan (genelde pool veya db)
-    const result = await pool.query(query, [id]);
 
-    // Frontend'e { gpa: 85.50 } formatında döner
-    res.json({ 
-      gpa: parseFloat(result.rows[0].gpa) 
+    const result = await db.query(query, [id]);
+
+    res.json({
+      gpa: Number(result.rows[0].gpa),
     });
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error getting student profile" });
