@@ -187,6 +187,7 @@ export const getUserEnrollments = async (req: any, res: any) => {
 
 
 // GPA calculation
+
 export const getStudentProfile = async (
   req: Request<{ id: string }>,
   res: Response
@@ -194,19 +195,32 @@ export const getStudentProfile = async (
   try {
     const { id } = req.params;
 
-    const query = `
-      SELECT COALESCE(AVG(score), 0) as gpa 
+    // 1. step: Quiz sonuçlarından ortalamayı hesapla
+    const queryAvg = `
+      SELECT COALESCE(AVG(score), 0) as calculated_gpa 
       FROM quiz_results 
       WHERE student_id = $1
     `;
+    const resultAvg = await db.query(queryAvg, [id]);
+    
+    // take the calculated value (e.g.: 85.50)
+    const newGpa = Number(resultAvg.rows[0].calculated_gpa);
 
-    const result = await db.query(query, [id]);
+    // 2. step: write the value (UPDATE)
+    const queryUpdate = `
+      UPDATE students 
+      SET gpa = $1 
+      WHERE user_id = $2
+    `;
+    await db.query(queryUpdate, [newGpa, id]);
 
+    // 3. step: Return up-to-date data on Frontend
     res.json({
-      gpa: Number(result.rows[0].gpa),
+      gpa: newGpa,
     });
+    
   } catch (error) {
-    console.error(error);
+    console.error("Get Student Profile Error:", error);
     res.status(500).json({ message: "Server error getting student profile" });
   }
 };
