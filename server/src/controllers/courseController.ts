@@ -184,7 +184,6 @@ export const enrollStudent = async (req: any, res: any) => {
     const { studentId } = req.body;
 
     try {
-        // ✅ CALL STORED PROCEDURE
         // The procedure handles:
         // 1. Checks if student exists
         // 2. Checks if course exists

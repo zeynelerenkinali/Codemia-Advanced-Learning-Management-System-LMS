@@ -9,6 +9,7 @@ import reviewRoutes from './routes/reviewRoutes';
 import progressRoutes from './routes/progressRoutes';
 import quizRoutes from './routes/quizRoutes';
 import questionRoutes from './routes/questionRoutes';
+import adminRoutes from './routes/adminRoutes';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/questions', questionRoutes);
+app.use('/api/admin', adminRoutes);
 
 // --- ROUTES DÜZELTME ---
 // Frontend /api/login ve /api/register diye istek atıyor.

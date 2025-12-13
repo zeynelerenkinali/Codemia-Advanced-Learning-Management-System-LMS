@@ -114,6 +114,28 @@ export const AdminPanel: React.FC = () => {
       return <div className="flex h-64 items-center justify-center text-indigo-600"><Loader2 className="animate-spin mr-2"/> Sistem Verileri Yükleniyor...</div>;
   }
 
+  const handleGpaRecalc = async () => {
+      if(!confirm("This will recalculate GPAs for ALL students based on their quiz scores. Continue?")) return;
+      
+      try {
+          const token = localStorage.getItem('token');
+          const response = await fetch(`${API_URL}/admin/recalculate-gpa`, { 
+              method: 'POST',
+              headers: {
+                  'Authorization': token ? `Bearer ${token}` : '',
+                  'Content-Type': 'application/json'
+              }
+          });
+
+          if (!response.ok) throw new Error("Request failed");
+          
+          alert("Success! All student GPAs have been updated.");
+      } catch (error) {
+          console.error(error);
+          alert("Operation failed.");
+      }
+    };
+
   return (
     <div className="space-y-8 animate-fade-in">
       <h2 className="text-3xl font-bold text-slate-800">Admin System Control</h2>
@@ -209,6 +231,19 @@ export const AdminPanel: React.FC = () => {
                 </pre>
             </div>
         )}
+      </div>
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <h3 className="text-xl font-bold text-slate-700 mb-4">System Maintenance</h3>
+        <p className="text-sm text-slate-500 mb-4">
+           Run batch jobs to synchronize database records.
+        </p>
+        
+        <button 
+            onClick={handleGpaRecalc}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded font-medium hover:bg-indigo-700 shadow-lg shadow-indigo-200"
+        >
+            Recalculate Student GPAs (Run Cursor)
+        </button>
       </div>
       {/* --- EDIT USER MODAL --- */}
       {editingUser && (
