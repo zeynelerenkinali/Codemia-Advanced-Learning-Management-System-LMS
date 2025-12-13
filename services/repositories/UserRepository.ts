@@ -42,17 +42,26 @@ export const UserRepository = {
 
   // Request to Become an Instructor (Promote)
   async becomeInstructor(userId: number, bio: string, expertise: string): Promise<User> {
-    const response = await fetch(`${API_URL}/instructors`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ userId, bio, expertise }),
-    });
+      const token = localStorage.getItem('token'); // Ensure we have the token
+      
+      const response = await fetch(`${API_URL}/users/${userId}/become-instructor`, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token ? `Bearer ${token}` : ''
+          },
+          body: JSON.stringify({ 
+              bio, 
+              expertise_area: expertise 
+          })
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Eğitmen olunamadı.");
-    }
-    return await response.json();
+      if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to upgrade account");
+      }
+
+      return response.json();
   },
 
   // Update Profile

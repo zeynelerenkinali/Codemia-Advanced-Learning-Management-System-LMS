@@ -16,9 +16,11 @@ const router = Router();
 // --- IMPORTANT: SPECIFIC ROUTES FIRST ---
 // These routes must be defined BEFORE /:id because they are more specific.
 
+
 // Instructor Logic
 router.post('/:id/become-instructor', becomeInstructor);
 router.get('/:id/instructor-profile', getInstructorProfile);
+
 
 // FIX: This line will now run before updateUser, fixing the routing issue.
 // This ensures requests to update instructor profile go here, not to the generic user update.

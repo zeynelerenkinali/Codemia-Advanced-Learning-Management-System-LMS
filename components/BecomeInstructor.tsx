@@ -13,6 +13,7 @@ export const BecomeInstructor: React.FC<Props> = ({ currentUser, onSuccess }) =>
   const [expertise, setExpertise] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  
   // NOT: UserRepository artık static bir obje olduğu için 'new' keyword'ü kullanmıyoruz.
 
   const handleSubmit = async (e: React.FormEvent) => {
