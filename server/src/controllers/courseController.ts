@@ -184,34 +184,30 @@ export const enrollStudent = async (req: any, res: any) => {
     const { studentId } = req.body;
 
     try {
-        // 1. Check if the course exists (Optional, but good practice)
-        const courseCheck = await db.query('SELECT * FROM courses WHERE course_id = $1', [courseId]);
-        if (courseCheck.rows.length === 0) {
-            return res.status(404).json({ message: "Course not found" });
-        }
+        // ✅ CALL STORED PROCEDURE
+        // The procedure handles:
+        // 1. Checks if student exists
+        // 2. Checks if course exists
+        // 3. Checks if already enrolled (and prevents duplicate)
+        // 4. Performs the INSERT
+        await db.query('CALL enroll_student_in_course($1, $2)', [studentId, courseId]);
 
-        // 2. Check if already enrolled
-        // Your schema has PRIMARY KEY (student_id, course_id), so duplicates will throw an error automatically.
-        // But checking first is cleaner.
-        const enrollmentCheck = await db.query(
-            'SELECT * FROM enrollments WHERE student_id = $1 AND course_id = $2',
-            [studentId, courseId]
-        );
+        res.status(201).json({ message: "Enrollment successful (via Stored Procedure)" });
 
-        if (enrollmentCheck.rows.length > 0) {
-            return res.status(400).json({ message: "Student is already enrolled" });
-        }
-
-        // 3. Insert into 'enrollments' table (Matches your Schema!)
-        await db.query(
-            'INSERT INTO enrollments (student_id, course_id) VALUES ($1, $2)',
-            [studentId, courseId]
-        );
-
-        res.status(201).json({ message: "Enrollment successful" });
-
-    } catch (error) {
+    } catch (error: any) {
         console.error("Enrollment Error:", error);
+
+        // Capture specific errors raised by the Procedure (e.g., 'Student is already enrolled')
+        // Postgres errors usually come in 'error.message'
+        const msg = error.message || "Server error";
+
+        if (msg.includes("already enrolled")) {
+            return res.status(400).json({ message: "Student is already enrolled." });
+        }
+        if (msg.includes("does not exist")) {
+            return res.status(404).json({ message: msg });
+        }
+
         res.status(500).json({ message: "Server error" });
     }
 };
