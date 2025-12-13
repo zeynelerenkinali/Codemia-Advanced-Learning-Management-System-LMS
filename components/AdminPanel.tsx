@@ -15,6 +15,9 @@ export const AdminPanel: React.FC = () => {
   const [generatedQuestion, setGeneratedQuestion] = useState<any>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
+  const [reportData, setReportData] = useState<any[]>([]);
+  const [showReport, setShowReport] = useState(false);
+
   // Backend'den Kullanıcıları Çek
   useEffect(() => {
     const fetchUsers = async () => {
@@ -135,11 +138,73 @@ export const AdminPanel: React.FC = () => {
           alert("Operation failed.");
       }
     };
+  const loadReport = async () => {
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/admin/reports/stats`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setReportData(data);
+        setShowReport(true);
+    } catch (e) { alert("Report failed"); }
+  };
 
   return (
     <div className="space-y-8 animate-fade-in">
       <h2 className="text-3xl font-bold text-slate-800">Admin System Control</h2>
-      
+    
+    {/* REPORTING SECTION */}
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mt-6">
+        <h3 className="text-xl font-bold text-slate-700 mb-4 flex items-center gap-2">
+            Analytics Reporting
+        </h3>
+
+        <button 
+            onClick={loadReport}
+            className="bg-slate-800 text-white px-4 py-2 rounded hover:bg-slate-700 transition-colors mb-4"
+        >
+            Generate Course Performance Report
+        </button>
+
+        {showReport && (
+            <div className="animate-in fade-in slide-in-from-top-4">
+                <div className="flex justify-between items-center mb-2 bg-slate-100 p-3 rounded">
+                    <h4 className="font-bold">Result Preview</h4>
+                    <button onClick={() => window.print()} className="text-indigo-600 underline text-sm">
+                        🖨️ Print / Save as PDF
+                    </button>
+                </div>
+
+                <table className="w-full text-sm text-left border-collapse border border-slate-300">
+                    <thead className="bg-slate-200">
+                        <tr>
+                            <th className="border p-2">Course Title</th>
+                            <th className="border p-2">Instructor</th>
+                            <th className="border p-2">Total Students</th>
+                            <th className="border p-2">Avg Progress</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {reportData.map((row, idx) => (
+                            <tr key={idx} className="even:bg-slate-50">
+                                <td className="border p-2 font-medium">{row['Course Title']}</td>
+                                <td className="border p-2">{row['Instructor Name']}</td>
+                                <td className="border p-2 text-center">{row['Total Students']}</td>
+                                <td className="border p-2 text-center">
+                                    <div className="w-full bg-slate-200 rounded-full h-2.5">
+                                        <div className="bg-indigo-600 h-2.5 rounded-full" style={{width: `${row['Avg Progress %']}%`}}></div>
+                                    </div>
+                                    <span className="text-xs">{row['Avg Progress %']}%</span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        )}
+    </div>
+
       {/* User Management Overview */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
         <h3 className="text-xl font-bold text-slate-700 mb-4">System Users</h3>
