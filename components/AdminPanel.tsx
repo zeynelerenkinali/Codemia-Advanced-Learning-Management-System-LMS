@@ -45,6 +45,65 @@ export const AdminPanel: React.FC = () => {
     fetchUsers();
   }, []);
 
+  // --- MEVCUT useEffect'in ALTINA EKLE ---
+  // Bu kod backend'e dokunmadan, student olanların notlarını
+  // tek tek çekip ana listeye monte eder.
+useEffect(() => {
+    const fetchStudentGPAs = async () => {
+      // 1. Student olup GPA'sı henüz görünmeyenleri bul
+      const studentsToFetch = users.filter(u => u.role === 'student'); 
+      
+      if (studentsToFetch.length === 0) return;
+
+      const token = localStorage.getItem('token');
+      const updatedUsers = [...users];
+      let hasChanges = false;
+
+      await Promise.all(studentsToFetch.map(async (student) => {
+        try {
+          const res = await fetch(`${API_URL}/users/${student.id}/student-profile`, {
+             headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            
+            // --- DÜZELTME BURADA ---
+            let incomingGpa = data.gpa;
+
+            // Eğer backend 25 ile çarpıp gönderiyorsa (yani değer 4.0'dan büyükse)
+            // biz onu tekrar 25'e bölüp orijinal haline getiriyoruz.
+            if (incomingGpa > 4.0) {
+                incomingGpa = incomingGpa / 25;
+            }
+            
+            const index = updatedUsers.findIndex(u => u.id === student.id);
+            if (index !== -1) {
+              // Eğer eski değerle yeni değer farklıysa güncelle (sonsuz döngüyü engellemek için kontrol)
+              if (updatedUsers[index].gpa !== incomingGpa) {
+                  updatedUsers[index] = { 
+                      ...updatedUsers[index], 
+                      gpa: incomingGpa 
+                  };
+                  hasChanges = true;
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`GPA fetch error`, err);
+        }
+      }));
+
+      if (hasChanges) {
+        setUsers(updatedUsers);
+      }
+    };
+
+    if (users.length > 0) {
+        fetchStudentGPAs();
+    }
+  }, [users.length]);
+
   // --- İSTATİSTİK HESAPLAMA ---
   const totalUsers = users.length;
   const studentCount = users.filter(u => u.role === 'student').length;

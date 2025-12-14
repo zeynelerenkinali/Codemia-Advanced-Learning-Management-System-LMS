@@ -195,21 +195,30 @@ export const getStudentProfile = async (
   try {
     const { id } = req.params;
 
-    // 1. GPA CALCULATION (Previous logic)
+    // 1. GPA HESAPLAMA (DÜZELTİLDİ)
+    // Sınav sonuçlarının ortalamasını alıyoruz
     const gpaQuery = `
-      SELECT COALESCE(AVG(score), 0) as calculated_gpa 
+      SELECT COALESCE(AVG(score), 0) as average_score 
       FROM quiz_results 
       WHERE student_id = $1
     `;
     const gpaResult = await db.query(gpaQuery, [id]);
-    const newGpa = Number(gpaResult.rows[0].calculated_gpa);
+    const rawAverage = Number(gpaResult.rows[0].average_score);
 
-    // Update GPA in the database (Make it persistent)
-    await db.query('UPDATE students SET gpa = $1 WHERE user_id = $2', [newGpa, id]);
+    // --- KRİTİK DÜZELTME ---
+    // Sınav puanları ham geliyor (örn: 7.5 veya 10). 
+    // Bunu 4'lük sisteme çevirmek için 25'e bölüyoruz.
+    // (Eğer sistemin 100 üzerinden ise ve 4'lük istiyorsan yine 25'e bölmek gerekir: 100/25 = 4)
+    let finalGpa = rawAverage / 25;
+
+    // Güvenlik önlemi: GPA 4.0'ı geçemesin (bonus puan vs varsa)
+    if (finalGpa > 4.00) finalGpa = 4.00;
+
+    // Veritabanına bu "dönüştürülmüş" doğru veriyi yazıyoruz
+    await db.query('UPDATE students SET gpa = $1 WHERE user_id = $2', [finalGpa, id]);
 
 
-    // 2. TOTAL COURSES COUNT (Newly added part)
-    // Go to the enrollments table and count how many rows this student has.
+    // 2. TOTAL COURSES COUNT
     const countQuery = `
       SELECT COUNT(*) as total_courses 
       FROM enrollments 
@@ -219,10 +228,9 @@ export const getStudentProfile = async (
     const totalCourses = Number(countResult.rows[0].total_courses);
 
 
-    // 3. RETURN RESULT
-    // Send both GPA and total course count to the frontend.
+    // 3. SONUÇ DÖNDÜR
     res.json({
-      gpa: newGpa,
+      gpa: finalGpa, // Artık 0.30 veya 0.40 olarak dönecek
       total_courses: totalCourses
     });
 
