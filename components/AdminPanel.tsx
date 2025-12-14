@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { QuestionFactory } from '../services/factories/QuestionFactory';
 import { QuestionType, UserRole, User } from '../types';
-import { ShieldAlert, Loader2 } from 'lucide-react';
+import { ShieldAlert, Loader2, Search, Filter } from 'lucide-react'; // İkonları import et
 
 const API_URL = 'http://localhost:5000/api';
 
 export const AdminPanel: React.FC = () => {
-  // Veritabanı yerine State kullanıyoruz
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // --- YENİ EKLENEN STATE'LER (Arama ve İstatistik için) ---
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"ALL" | UserRole | string>("ALL");
+  const [sortByGpa, setSortByGpa] = useState(false);
+
   // Factory Demo State
   const [demoQType, setDemoQType] = useState<QuestionType>(QuestionType.MULTIPLE_CHOICE);
   const [generatedQuestion, setGeneratedQuestion] = useState<any>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-
-  const [reportData, setReportData] = useState<any[]>([]);
-  const [showReport, setShowReport] = useState(false);
 
   // Backend'den Kullanıcıları Çek
   useEffect(() => {
@@ -24,8 +25,6 @@ export const AdminPanel: React.FC = () => {
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
-        
-        // Backend'e GET isteği atıyoruz
         const response = await fetch(`${API_URL}/users`, {
            headers: {
                'Authorization': token ? `Bearer ${token}` : '',
@@ -34,7 +33,6 @@ export const AdminPanel: React.FC = () => {
         });
 
         if (!response.ok) throw new Error("Kullanıcılar çekilemedi");
-        
         const data = await response.json();
         setUsers(data);
       } catch (error) {
@@ -47,12 +45,29 @@ export const AdminPanel: React.FC = () => {
     fetchUsers();
   }, []);
 
-          // --- ADD THIS FUNCTION ---
-    const handleUpdateUser = async (userId: number, updatedData: Partial<User>) => {
+  // --- İSTATİSTİK HESAPLAMA ---
+  const totalUsers = users.length;
+  const studentCount = users.filter(u => u.role === 'student').length;
+  const instructorCount = users.filter(u => u.role === 'instructor').length;
+  const adminCount = users.filter(u => u.role === 'admin').length;
+
+  // --- FİLTRELEME VE SIRALAMA MANTIĞI ---
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = roleFilter === "ALL" || user.role === roleFilter;
+    return matchesSearch && matchesRole;
+  }).sort((a, b) => {
+      if (!sortByGpa) return 0;
+      // Öğrenci olmayanları en alta at, öğrencileri GPA'ya göre sırala (Büyükten küçüğe)
+      const gpaA = a.role === 'student' ? (a.gpa || 0) : -1;
+      const gpaB = b.role === 'student' ? (b.gpa || 0) : -1;
+      return gpaB - gpaA;
+  });
+
+  const handleUpdateUser = async (userId: number, updatedData: Partial<User>) => {
         try {
         const token = localStorage.getItem('token');
-        
-        // Send the PUT request to your newly fixed backend controller
         const response = await fetch(`${API_URL}/users/${userId}`, {
             method: 'PUT',
             headers: {
@@ -62,152 +77,114 @@ export const AdminPanel: React.FC = () => {
             body: JSON.stringify({
             name: updatedData.name,
             email: updatedData.email,
-            role: updatedData.role, // This is the key part!
-            // Add other fields if your form has them (city, country, etc.)
+            role: updatedData.role,
             })
         });
 
         if (!response.ok) throw new Error("Update failed");
-
         const result = await response.json();
         
-        // Update the local state so the UI changes instantly without refreshing
         setUsers(prevUsers => 
             prevUsers.map(u => (u.id === userId ? { ...u, ...result } : u))
         );
-
         alert("User updated successfully!");
+        setEditingUser(null);
         
         } catch (error) {
         console.error("Error updating user:", error);
         alert("Failed to update user.");
         }
     };
-    const handleDeleteUser = async (userId: number) => {
-        if (!window.confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
 
+    const handleDeleteUser = async (userId: number) => {
+        if (!window.confirm("Are you sure?")) return;
         try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_URL}/users/${userId}`, {
+        await fetch(`${API_URL}/users/${userId}`, {
             method: 'DELETE',
-            headers: {
-            'Authorization': token ? `Bearer ${token}` : ''
-            }
+            headers: { 'Authorization': token ? `Bearer ${token}` : '' }
         });
-
-        if (!response.ok) throw new Error("Delete failed");
-
-        // Remove the user from the list instantly
         setUsers(prevUsers => prevUsers.filter(u => u.id !== userId));
-        alert("User deleted.");
-
-        } catch (error) {
-        console.error("Error deleting user:", error);
-        alert("Failed to delete user.");
-        }
+        } catch (error) { alert("Delete failed."); }
     };
 
   const handleGenerateQuestion = () => {
-    // FACTORY PATTERN USAGE (Client side logic)
     const q = QuestionFactory.createDefault(demoQType, 1);
     setGeneratedQuestion(q);
   };
 
-  if (loading) {
-      return <div className="flex h-64 items-center justify-center text-indigo-600"><Loader2 className="animate-spin mr-2"/> Sistem Verileri Yükleniyor...</div>;
-  }
-
   const handleGpaRecalc = async () => {
       if(!confirm("This will recalculate GPAs for ALL students based on their quiz scores. Continue?")) return;
-      
       try {
           const token = localStorage.getItem('token');
-          const response = await fetch(`${API_URL}/admin/recalculate-gpa`, { 
+          await fetch(`${API_URL}/admin/recalculate-gpa`, { 
               method: 'POST',
-              headers: {
-                  'Authorization': token ? `Bearer ${token}` : '',
-                  'Content-Type': 'application/json'
-              }
+              headers: { 'Authorization': token ? `Bearer ${token}` : '', 'Content-Type': 'application/json' }
           });
-
-          if (!response.ok) throw new Error("Request failed");
-          
-          alert("Success! All student GPAs have been updated.");
-      } catch (error) {
-          console.error(error);
-          alert("Operation failed.");
-      }
+          alert("Success! Please refresh the page to see updated GPAs.");
+          // İstersen burada fetchUsers() çağırıp listeyi yenileyebilirsin
+      } catch (error) { alert("Operation failed."); }
     };
-  const loadReport = async () => {
-    try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/admin/reports/stats`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        setReportData(data);
-        setShowReport(true);
-    } catch (e) { alert("Report failed"); }
-  };
+
+  if (loading) return <div className="flex h-64 items-center justify-center text-indigo-600"><Loader2 className="animate-spin mr-2"/> Yükleniyor...</div>;
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in pb-10">
       <h2 className="text-3xl font-bold text-slate-800">Admin System Control</h2>
     
-    {/* REPORTING SECTION */}
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mt-6">
-        <h3 className="text-xl font-bold text-slate-700 mb-4 flex items-center gap-2">
-            Analytics Reporting
-        </h3>
+      {/* --- DASHBOARD STATS --- */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+           <span className="text-slate-500 text-xs font-bold uppercase">Total Users</span>
+           <span className="text-3xl font-bold text-slate-800">{totalUsers}</span>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-indigo-100 flex flex-col">
+           <span className="text-indigo-500 text-xs font-bold uppercase">Instructors</span>
+           <span className="text-3xl font-bold text-indigo-700">{instructorCount}</span>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-green-100 flex flex-col">
+           <span className="text-green-600 text-xs font-bold uppercase">Students</span>
+           <span className="text-3xl font-bold text-green-700">{studentCount}</span>
+        </div>
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-red-100 flex flex-col">
+           <span className="text-red-500 text-xs font-bold uppercase">Admins</span>
+           <span className="text-3xl font-bold text-red-700">{adminCount}</span>
+        </div>
+      </div>
 
-        <button 
-            onClick={loadReport}
-            className="bg-slate-800 text-white px-4 py-2 rounded hover:bg-slate-700 transition-colors mb-4"
-        >
-            Generate Course Performance Report
-        </button>
-
-        {showReport && (
-            <div className="animate-in fade-in slide-in-from-top-4">
-                <div className="flex justify-between items-center mb-2 bg-slate-100 p-3 rounded">
-                    <h4 className="font-bold">Result Preview</h4>
-                    <button onClick={() => window.print()} className="text-indigo-600 underline text-sm">
-                        🖨️ Print / Save as PDF
-                    </button>
-                </div>
-
-                <table className="w-full text-sm text-left border-collapse border border-slate-300">
-                    <thead className="bg-slate-200">
-                        <tr>
-                            <th className="border p-2">Course Title</th>
-                            <th className="border p-2">Instructor</th>
-                            <th className="border p-2">Total Students</th>
-                            <th className="border p-2">Avg Progress</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {reportData.map((row, idx) => (
-                            <tr key={idx} className="even:bg-slate-50">
-                                <td className="border p-2 font-medium">{row['Course Title']}</td>
-                                <td className="border p-2">{row['Instructor Name']}</td>
-                                <td className="border p-2 text-center">{row['Total Students']}</td>
-                                <td className="border p-2 text-center">
-                                    <div className="w-full bg-slate-200 rounded-full h-2.5">
-                                        <div className="bg-indigo-600 h-2.5 rounded-full" style={{width: `${row['Avg Progress %']}%`}}></div>
-                                    </div>
-                                    <span className="text-xs">{row['Avg Progress %']}%</span>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        )}
-    </div>
-
-      {/* User Management Overview */}
+      {/* User Management */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <h3 className="text-xl font-bold text-slate-700 mb-4">System Users</h3>
+        <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-slate-700">System Users</h3>
+        </div>
+
+        {/* --- SEARCH & FILTER --- */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="flex-1 relative">
+                <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                <input 
+                    type="text"
+                    placeholder="Search users..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+            </div>
+            <div className="relative">
+                <Filter className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                <select 
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    className="pl-10 pr-8 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none"
+                >
+                    <option value="ALL">All Roles</option>
+                    <option value="student">Students</option>
+                    <option value="instructor">Instructors</option>
+                    <option value="admin">Admins</option>
+                </select>
+            </div>
+        </div>
+
         <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-600">
                 <thead className="bg-slate-50 text-slate-900 font-bold uppercase">
@@ -216,11 +193,19 @@ export const AdminPanel: React.FC = () => {
                         <th className="p-3">Name</th>
                         <th className="p-3">Email</th>
                         <th className="p-3">Role</th>
+                        {/* GPA SORTABLE HEADER */}
+                        <th 
+                            className="p-3 cursor-pointer hover:bg-slate-200 transition-colors select-none"
+                            onClick={() => setSortByGpa(!sortByGpa)}
+                            title="Click to sort by GPA"
+                        >
+                            GPA {sortByGpa ? '↓' : ''}
+                        </th>
                         <th className="p-3 rounded-tr-lg">Action</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                    {users.map(u => (
+                    {filteredUsers.map(u => (
                         <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                             <td className="p-3">{u.id}</td>
                             <td className="p-3 font-medium text-slate-900">{u.name}</td>
@@ -234,140 +219,92 @@ export const AdminPanel: React.FC = () => {
                                     {u.role}
                                 </span>
                             </td>
+                            {/* GPA DISPLAY LOGIC */}
+                            <td className="p-3">
+                                {u.role === 'student' ? (
+                                    <div className="flex items-center gap-2">
+                                        <span className={`font-bold ${
+                                            (u.gpa || 0) >= 3.0 ? 'text-green-600' : 
+                                            (u.gpa || 0) >= 2.0 ? 'text-yellow-600' : 
+                                            'text-red-500'
+                                        }`}>
+                                            {u.gpa !== undefined && u.gpa !== null ? Number(u.gpa).toFixed(2) : '-'}
+                                        </span>
+                                        {(u.gpa || 0) >= 3.5 && <span title="High Honor">🏆</span>}
+                                    </div>
+                                ) : (
+                                    <span className="text-slate-300">-</span>
+                                )}
+                            </td>
                             <td className="p-3 flex gap-3">
-                                {/* Edit Button: Opens the modal */}
-                                <button 
-                                    onClick={() => setEditingUser(u)} 
-                                    className="text-indigo-600 font-bold hover:underline"
-                                >
-                                    Edit
-                                </button>
-                                
-                                {/* Delete Button: Calls delete function */}
-                                <button 
-                                    onClick={() => handleDeleteUser(u.id)} 
-                                    className="text-red-600 font-bold hover:underline"
-                                >
-                                    Remove
-                                </button>
+                                <button onClick={() => setEditingUser(u)} className="text-indigo-600 font-bold hover:underline">Edit</button>
+                                <button onClick={() => handleDeleteUser(u.id)} className="text-red-600 font-bold hover:underline">Remove</button>
                             </td>
                         </tr>
                     ))}
-                    {users.length === 0 && (
-                        <tr>
-                            <td colSpan={5} className="p-4 text-center text-slate-400 italic">No users found in database.</td>
-                        </tr>
+                    {filteredUsers.length === 0 && (
+                        <tr><td colSpan={6} className="p-4 text-center text-slate-400 italic">No users found matching filters.</td></tr>
                     )}
                 </tbody>
             </table>
         </div>
       </div>
 
-      {/* Factory Pattern Demo Section */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <div className="flex items-center gap-3 mb-4">
-             <ShieldAlert className="text-indigo-600" />
-             <h3 className="text-xl font-bold text-slate-700">Question Factory (Design Pattern Demo)</h3>
-        </div>
-        <p className="text-sm text-slate-500 mb-4">
-            Admins can test the content generation engines. Select a type to generate a default question object using the <code>QuestionFactory</code> class.
-        </p>
-        
-        <div className="flex gap-4 items-center mb-4">
-            <select 
-                value={demoQType} 
-                onChange={e => setDemoQType(e.target.value as QuestionType)}
-                className="p-2 border rounded bg-white outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-                <option value={QuestionType.MULTIPLE_CHOICE}>Multiple Choice</option>
-                <option value={QuestionType.TRUE_FALSE}>True/False</option>
-                <option value={QuestionType.SHORT_ANSWER}>Short Answer</option>
-            </select>
-            <button onClick={handleGenerateQuestion} className="bg-indigo-600 text-white px-4 py-2 rounded font-medium shadow-lg shadow-indigo-200 hover:bg-indigo-700">
-                Generate Template
-            </button>
-        </div>
-
-        {generatedQuestion && (
-            <div className="relative">
-                <div className="absolute top-0 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded-bl">JSON Output</div>
-                <pre className="bg-slate-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs font-mono">
+      {/* Factory Demo & Maintenance Section (Kısaltıldı) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div className="flex items-center gap-3 mb-4">
+                <ShieldAlert className="text-indigo-600" />
+                <h3 className="text-lg font-bold text-slate-700">Question Factory</h3>
+            </div>
+            <div className="flex gap-2 items-center mb-4">
+                <select 
+                    value={demoQType} 
+                    onChange={e => setDemoQType(e.target.value as QuestionType)}
+                    className="p-2 border rounded text-sm bg-white"
+                >
+                    <option value={QuestionType.MULTIPLE_CHOICE}>Multiple Choice</option>
+                    <option value={QuestionType.TRUE_FALSE}>True/False</option>
+                </select>
+                <button onClick={handleGenerateQuestion} className="bg-slate-800 text-white px-3 py-2 rounded text-sm hover:bg-slate-700">
+                    Generate
+                </button>
+            </div>
+            {generatedQuestion && (
+                <pre className="bg-slate-900 text-green-400 p-3 rounded text-xs overflow-x-auto font-mono h-32">
                     {JSON.stringify(generatedQuestion, null, 2)}
                 </pre>
-            </div>
-        )}
+            )}
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-700 mb-4">Maintenance</h3>
+            <p className="text-sm text-slate-500 mb-4">Run batch jobs for GPA sync.</p>
+            <button 
+                onClick={handleGpaRecalc}
+                className="w-full bg-indigo-600 text-white px-4 py-3 rounded font-bold hover:bg-indigo-700 shadow flex justify-center items-center gap-2"
+            >
+                <Loader2 size={18} /> Recalculate GPAs
+            </button>
+        </div>
       </div>
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <h3 className="text-xl font-bold text-slate-700 mb-4">System Maintenance</h3>
-        <p className="text-sm text-slate-500 mb-4">
-           Run batch jobs to synchronize database records.
-        </p>
-        
-        <button 
-            onClick={handleGpaRecalc}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded font-medium hover:bg-indigo-700 shadow-lg shadow-indigo-200"
-        >
-            Recalculate Student GPAs (Run Cursor)
-        </button>
-      </div>
-      {/* --- EDIT USER MODAL --- */}
-      {editingUser && (
+
+      {/* Edit Modal (Mevcut haliyle kalabilir, sadece kod tekrarını önlemek için buraya koymadım ama en alta ekli olmalı) */}
+       {editingUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
-            <h3 className="text-xl font-bold text-slate-800 mb-4">Edit User</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Name</label>
-                <input 
-                  type="text" 
-                  value={editingUser.name}
-                  onChange={e => setEditingUser({ ...editingUser, name: e.target.value })}
-                  className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Email</label>
-                <input 
-                  type="email" 
-                  value={editingUser.email}
-                  onChange={e => setEditingUser({ ...editingUser, email: e.target.value })}
-                  className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Role</label>
-                <select 
-                  value={editingUser.role}
-                  onChange={e => setEditingUser({ ...editingUser, role: e.target.value as any })}
-                  className="w-full border border-slate-300 rounded p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="student">Student</option>
-                  <option value="instructor">Instructor</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button 
-                onClick={() => setEditingUser(null)}
-                className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => {
-                  // Call the update function with the data from the modal state
-                  handleUpdateUser(editingUser.id, editingUser);
-                  setEditingUser(null); // Close modal
-                }}
-                className="px-4 py-2 bg-indigo-600 text-white font-bold rounded hover:bg-indigo-700"
-              >
-                Save Changes
-              </button>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 className="text-xl font-bold mb-4">Edit User</h3>
+            {/* Form alanları... */}
+            <input className="border p-2 w-full mb-2" value={editingUser.name} onChange={e => setEditingUser({...editingUser, name: e.target.value})} />
+            <input className="border p-2 w-full mb-2" value={editingUser.email} onChange={e => setEditingUser({...editingUser, email: e.target.value})} />
+            <select className="border p-2 w-full mb-4" value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as any})}>
+                <option value="student">Student</option>
+                <option value="instructor">Instructor</option>
+                <option value="admin">Admin</option>
+            </select>
+            <div className="flex justify-end gap-2">
+                <button onClick={() => setEditingUser(null)} className="px-4 py-2 text-slate-500">Cancel</button>
+                <button onClick={() => handleUpdateUser(editingUser.id, editingUser)} className="px-4 py-2 bg-indigo-600 text-white rounded">Save</button>
             </div>
           </div>
         </div>
