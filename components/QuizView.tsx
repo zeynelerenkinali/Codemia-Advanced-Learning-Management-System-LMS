@@ -187,29 +187,31 @@ const handleSubmit = async () => {
               )}
 
               {/* TRUE / FALSE */}
-              {q.type === QuestionType.TRUE_FALSE && q.options && (
-                 <div className="flex gap-4">
-                    {q.options.map(opt => (
-                         <button
-                            key={opt}
-                            disabled={submitted}
-                            onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt }))}
-                            className={`px-4 py-2 rounded border font-medium transition-colors ${
-                                submitted 
-                                    ? opt === q.correct_answer 
-                                        ? 'bg-green-600 text-white border-green-700' 
-                                        : answers[q.id] === opt 
-                                            ? 'bg-red-500 text-white border-red-600'
-                                            : 'bg-slate-100 text-slate-400'
-                                    : answers[q.id] === opt 
-                                        ? 'bg-indigo-600 text-white' 
-                                        : 'bg-white hover:bg-slate-100'
-                            }`}
-                         >
-                             {opt}
-                         </button>
-                    ))}
-                 </div>
+              {q.type === QuestionType.TRUE_FALSE && (
+                <div className="flex gap-4">
+                  {/* Eğer q.options varsa onu kullan, yoksa ['True', 'False'] kullan */}
+                  {(q.options && q.options.length > 0 ? q.options : ['True', 'False']).map(opt => (
+                    <button
+                      key={opt}
+                      type="button" // Form submit'i engellemek için
+                      disabled={submitted}
+                      onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt }))}
+                      className={`px-6 py-2 rounded-lg border font-medium transition-all ${
+                        submitted 
+                          ? opt === q.correct_answer 
+                            ? 'bg-green-600 text-white border-green-700' 
+                            : answers[q.id] === opt 
+                              ? 'bg-red-500 text-white border-red-600'
+                              : 'bg-slate-100 text-slate-400 border-slate-200'
+                          : answers[q.id] === opt 
+                            ? 'bg-indigo-600 text-white shadow-md' 
+                            : 'bg-white border-slate-300 hover:border-indigo-500 hover:text-indigo-600'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
               )}
 
               {/* SHORT ANSWER */}
