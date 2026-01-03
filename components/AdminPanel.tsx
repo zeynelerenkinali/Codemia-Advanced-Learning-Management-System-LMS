@@ -66,9 +66,6 @@ export const AdminPanel: React.FC = () => {
     fetchUsers();
   }, []);
 
-  // --- MEVCUT useEffect'in ALTINA EKLE ---
-  // Bu kod backend'e dokunmadan, student olanların notlarını
-  // tek tek çekip ana listeye monte eder.
     useEffect(() => {
     const fetchStudentGPAs = async () => {
       // 1. Student olup GPA'sı henüz görünmeyenleri bul
@@ -89,7 +86,6 @@ export const AdminPanel: React.FC = () => {
           if (res.ok) {
             const data = await res.json();
             
-            // --- DÜZELTME BURADA ---
             let incomingGpa = data.gpa;
 
             // Eğer backend 25 ile çarpıp gönderiyorsa (yani değer 4.0'dan büyükse)
