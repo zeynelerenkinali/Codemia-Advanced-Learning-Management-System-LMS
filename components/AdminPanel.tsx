@@ -3,6 +3,27 @@ import { QuestionFactory } from '../services/factories/QuestionFactory';
 import { QuestionType, UserRole, User } from '../types';
 import { ShieldAlert, Loader2, Search, Filter } from 'lucide-react'; // İkonları import et
 
+
+const reportStyles = `
+@media print {
+  nav, button, input, select, .no-print, [className*="Maintenance"], [className*="Question-Factory"], svg {
+    display: none !important;
+  }
+  body::before {
+    content: "CODEMIA - STUDENT PERFORMANCE & SYSTEM USAGE REPORT";
+    display: block;
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 30px;
+    color: #1e293b;
+  }
+  table { width: 100% !important; border-collapse: collapse !important; }
+  th, td { border: 1px solid #cbd5e1 !important; padding: 12px !important; color: black !important; }
+  .bg-white { background-color: white !important; }
+}
+`;
+
 const API_URL = 'http://localhost:5000/api';
 
 export const AdminPanel: React.FC = () => {
@@ -48,7 +69,7 @@ export const AdminPanel: React.FC = () => {
   // --- MEVCUT useEffect'in ALTINA EKLE ---
   // Bu kod backend'e dokunmadan, student olanların notlarını
   // tek tek çekip ana listeye monte eder.
-useEffect(() => {
+    useEffect(() => {
     const fetchStudentGPAs = async () => {
       // 1. Student olup GPA'sı henüz görünmeyenleri bul
       const studentsToFetch = users.filter(u => u.role === 'student'); 
@@ -188,8 +209,13 @@ useEffect(() => {
   if (loading) return <div className="flex h-64 items-center justify-center text-indigo-600"><Loader2 className="animate-spin mr-2"/> Yükleniyor...</div>;
 
   return (
+    
+    
     <div className="space-y-8 animate-fade-in pb-10">
-      <h2 className="text-3xl font-bold text-slate-800">Admin System Control</h2>
+
+      <style>{reportStyles}</style>
+
+      <h2 className="text-3xl font-bold text-slate-800 no-print">Admin System Control</h2>
     
       {/* --- DASHBOARD STATS --- */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -214,8 +240,15 @@ useEffect(() => {
       {/* User Management */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
         <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-slate-700">System Users</h3>
-        </div>
+    <h3 className="text-xl font-bold text-slate-700">System Users</h3>
+
+    <button 
+        onClick={() => window.print()} 
+        className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-green-700"
+    >
+        <span className="text-lg">🖨️</span> Export PDF / Print Report
+    </button>
+    </div>
 
         {/* --- SEARCH & FILTER --- */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -370,4 +403,5 @@ useEffect(() => {
       )}
     </div>
   );
+  
 };
