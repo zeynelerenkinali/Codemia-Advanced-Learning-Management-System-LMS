@@ -71,7 +71,7 @@ cd codemia
 
 ---
 
-2. Database Setup
+### 2. Database Setup
 
 Create a PostgreSQL database and run the schema script:
 ```bash
@@ -80,7 +80,7 @@ psql -U postgres -d codemia -f database/schema.sql
 
 ---
 
-3. Backend Setup
+### 3. Backend Setup
 
 ```bash
 cd server
@@ -94,7 +94,7 @@ npm run dev
 
 ---
 
-4. Frontend Setup
+### 4. Frontend Setup
 ```bash
 cd client
 npm install
