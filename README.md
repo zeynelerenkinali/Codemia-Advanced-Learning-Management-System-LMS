@@ -6,7 +6,7 @@
 ![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791)
 ![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6)
 
-[cite_start]**Codemia** is a comprehensive E-Learning platform designed to manage digital education processes, enhance student experiences, and streamline course administration[cite: 3]. [cite_start]Built with a modern **PERN stack** (PostgreSQL, Express, React, Node.js), it features role-based access control, interactive quizzes, and advanced reporting systems[cite: 5].
+**Codemia** is a comprehensive E-Learning platform designed to manage digital education processes, enhance student experiences, and streamline course administration. Built with a modern **PERN stack** (PostgreSQL, Express, React, Node.js), it features role-based access control, interactive quizzes, and advanced reporting systems.
 
 ---
 
