@@ -68,16 +68,21 @@ The project leverages advanced DBMS features rather than just simple CRUD operat
 git clone [https://github.com/your-username/codemia.git](https://github.com/your-username/codemia.git)
 cd codemia
 ```
+
+---
+
 2. Database Setup
 
 Create a PostgreSQL database and run the schema script:
-```Bash
-
+```bash
 psql -U postgres -d codemia -f database/schema.sql
-
-3. Backend Setup
 ```
 
+---
+
+3. Backend Setup
+
+```bash
 cd server
 npm install
 # Create a .env file with your DB credentials
@@ -85,16 +90,19 @@ npm install
 # DB_PASSWORD=yourpassword
 # DB_HOST=localhost
 npm run dev
+```
+
+---
 
 4. Frontend Setup
-```Bash
-
+```bash
 cd client
 npm install
 npm run dev
 ```
 The application will run at http://localhost:3000.
 
+---
 
 📄 License
 
