@@ -15,13 +15,13 @@
 ### 👨‍🎓 Student Portal
 * **Course Enrollment:** Browse and enroll in courses with instant access.
 * **Interactive Learning:** Watch videos, read articles, and take quizzes.
-* [cite_start]**Progress Tracking:** Real-time progress bars powered by the **Observer Pattern**[cite: 178].
+* **Progress Tracking:** Real-time progress bars powered by the **Observer Pattern**.
 * **GPA Calculation:** Automated GPA updates based on quiz performance.
 
 ### 👨‍🏫 Instructor Dashboard
 * **Course Management:** Create and edit courses with a rich master-detail interface.
 * **Content Creation:** Add lessons and attach resources (PDF, Video).
-* [cite_start]**Quiz Builder:** Create quizzes with Multiple Choice, True/False, and Short Answer questions using the **Factory Pattern**[cite: 22].
+* **Quiz Builder:** Create quizzes with Multiple Choice, True/False, and Short Answer questions using the **Factory Pattern**.
 
 ### 🛡️ Admin Panel
 * **User Management:** Manage students, instructors, and system admins.
@@ -32,16 +32,16 @@
 
 ## 🏗️ Software Architecture & Design Patterns
 
-[cite_start]This project implements **8 Software Design Patterns** to ensure scalability and maintainability[cite: 6]:
+This project implements **8 Software Design Patterns** to ensure scalability and maintainability:
 
-1.  [cite_start]**Singleton:** Manages a single database connection instance to optimize resources[cite: 9, 11].
-2.  [cite_start]**Facade:** Abstracts complex API fetch logic (`authFetch`) into a simple interface[cite: 27, 32].
-3.  [cite_start]**Factory Method:** Centralizes the creation of different question types (Multiple Choice, True/False)[cite: 17, 22].
-4.  [cite_start]**Observer:** Updates UI components (progress bars, badges) automatically when a lesson is completed[cite: 175, 183].
-5.  [cite_start]**Strategy:** Handles different quiz scoring algorithms (Standard vs. Strict scoring) dynamically[cite: 121, 129].
-6.  [cite_start]**Proxy:** Configured via Vite to handle API requests and manage CORS between frontend and backend[cite: 90, 96].
-7.  [cite_start]**State:** Manages complex user role states and UI transitions (Student View vs. Admin View)[cite: 204].
-8.  [cite_start]**Repository:** Decouples business logic from data access layers for Users and Courses[cite: 52].
+1.  **Singleton:** Manages a single database connection instance to optimize resources.
+2.  **Facade:** Abstracts complex API fetch logic (`authFetch`) into a simple interface.
+3.  **Factory Method:** Centralizes the creation of different question types (Multiple Choice, True/False).
+4.  **Observer:** Updates UI components (progress bars, badges) automatically when a lesson is completed.
+5.  **Strategy:** Handles different quiz scoring algorithms (Standard vs. Strict scoring) dynamically.
+6.  **Proxy:** Configured via Vite to handle API requests and manage CORS between frontend and backend.
+7.  **State:** Manages complex user role states and UI transitions (Student View vs. Admin View).
+8.  **Repository:** Decouples business logic from data access layers for Users and Courses.
 
 ---
 
